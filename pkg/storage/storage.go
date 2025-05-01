@@ -34,7 +34,7 @@ func init() {
 }
 
 type Storage struct {
-	client       *azblob.Client
+	client        *azblob.Client
 	containerName string
 }
 
@@ -50,7 +50,7 @@ func NewStorage(accountURL, accountKey, containerName string) (*Storage, error) 
 	}
 
 	return &Storage{
-		client:       client,
+		client:        client,
 		containerName: containerName,
 	}, nil
 }
@@ -72,7 +72,7 @@ func (s *Storage) UploadFile(ctx context.Context, fileID string, reader io.Reade
 
 func (s *Storage) DownloadFile(ctx context.Context, fileID string) (io.ReadCloser, error) {
 	blobName := fmt.Sprintf("%s", fileID)
-	
+
 	// Download the file
 	downloadResponse, err := s.client.DownloadStream(ctx, s.containerName, blobName, nil)
 	if err != nil {
@@ -84,11 +84,11 @@ func (s *Storage) DownloadFile(ctx context.Context, fileID string) (io.ReadClose
 
 func (s *Storage) DeleteFile(ctx context.Context, fileID string) error {
 	blobName := fmt.Sprintf("%s", fileID)
-	
+
 	_, err := s.client.DeleteBlob(ctx, s.containerName, blobName, nil)
 	if err != nil {
 		return fmt.Errorf("failed to delete file: %w", err)
 	}
 
 	return nil
-} 
+}
