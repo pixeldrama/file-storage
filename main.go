@@ -13,16 +13,13 @@ import (
 )
 
 func main() {
-	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to load config: %v", err))
 	}
 
-	// Initialize metrics collector
 	metricsCollector := metrics.NewPrometheusMetrics()
 
-	// Initialize storage client
 	fileStorage, err := storage.NewAzureBlobStorage(
 		cfg.BlobStorageURL,
 		cfg.StorageKey,
@@ -33,19 +30,14 @@ func main() {
 		panic(fmt.Sprintf("Failed to initialize storage client: %v", err))
 	}
 
-	// Initialize repository
 	jobRepo := repository.NewInMemoryRepository()
 
-	// Initialize HTTP handlers
 	handlers := http.NewHandlers(fileStorage, jobRepo)
 
-	// Initialize Gin router
 	r := gin.Default()
 
-	// Add Prometheus metrics endpoint
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	// API routes
 	api := r.Group("/api")
 	{
 		api.POST("/upload-jobs", handlers.CreateUploadJob)
@@ -54,7 +46,6 @@ func main() {
 		api.GET("/files/:fileId", handlers.DownloadFile)
 	}
 
-	// Start server
 	if err := r.Run(":" + cfg.ServerPort); err != nil {
 		panic(fmt.Sprintf("Failed to start server: %v", err))
 	}

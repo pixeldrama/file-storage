@@ -25,7 +25,7 @@ func NewPrometheusMetrics() *PrometheusMetrics {
 			prometheus.HistogramOpts{
 				Name:    "file_upload_size_bytes",
 				Help:    "Size of uploaded files in bytes",
-				Buckets: prometheus.ExponentialBuckets(1024, 2, 10), // 1KB to 1MB
+				Buckets: prometheus.ExponentialBuckets(1024, 2, 10),
 			},
 		),
 	}
