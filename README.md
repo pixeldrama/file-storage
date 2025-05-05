@@ -9,6 +9,7 @@ A Go service for asynchronous file uploads and downloads using Azure Blob Storag
 - Prometheus metrics endpoint
 - Environment-based configuration
 - Mocked vault integration for development
+- Automatic antivirus scanning of uploaded files
 
 ## Configuration
 
@@ -40,13 +41,13 @@ Returns the current status of an upload job.
 POST /api/upload-jobs/{jobId}
 Content-Type: multipart/form-data
 ```
-Uploads a file for the specified job ID.
+Uploads a file for the specified job ID. Files are automatically scanned for viruses after upload.
 
 ### Download File
 ```
 GET /api/files/{fileId}
 ```
-Downloads a file by its ID.
+Downloads a file by its ID. Files are only available for download after passing antivirus scanning. If a file is still being scanned, the request will return a 404 status code.
 
 ### Metrics
 ```
