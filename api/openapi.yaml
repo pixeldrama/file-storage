@@ -43,6 +43,11 @@ paths:
       responses:
         '200':
           description: Upload job status retrieved successfully
+          headers:
+            Location:
+              schema:
+                type: string
+                description: URL to download the file (only present when status is COMPLETED). Example: http://localhost:8080/files/123e4567-e89b-12d3-a456-426614174000
           content:
             application/json:
               schema:
@@ -156,7 +161,7 @@ components:
           description: The name of the file being uploaded
         status:
           type: string
-          enum: [PENDING, UPLOADING, COMPLETED, FAILED]
+          enum: [PENDING, UPLOADING, VIRUS_CHECKING, COMPLETED, FAILED]
         createdAt:
           type: string
           format: date-time
