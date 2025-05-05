@@ -74,7 +74,8 @@ paths:
                 file:
                   type: string
                   format: binary
-                  description: Exactly one file must be provided for upload
+                  description: The file to upload. Exactly one file must be provided, and no additional fields are allowed.
+              additionalProperties: false
       responses:
         '201':
           description: File uploaded successfully
