@@ -1,0 +1,207 @@
+openapi: 3.0.0
+info:
+  title: File Storage API
+  version: 1.0.0
+  description: >
+    This API provides endpoints for uploading and retrieving files using multipart/form-data. 
+    It acts as a gateway to store files in a backend storage system, allowing users 
+    to securely upload files and retrieve them using unique file IDs. The service 
+    supports authentication and authorization to ensure secure access to the files.
+security:
+  - BearerAuth: [ ]
+paths:
+  /upload-jobs:
+    post:
+      summary: Create a new upload job
+      description: Creates a new upload job and returns a UUID
+      operationId: createUploadJob
+      responses:
+        '201':
+          description: Upload job created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadJob'
+        '400':
+          $ref: 'errors.yml#/components/responses/InvalidRequestParameters'
+        401:
+          $ref: 'errors.yml#/components/responses/Unauthorized'
+        403:
+          $ref: 'errors.yml#/components/responses/Forbidden'
+        '404':
+          $ref: 'errors.yml#/components/responses/ResourceNotFound'
+        500:
+          $ref: 'errors.yml#/components/responses/InternalServerError'
+
+  /upload-jobs/{jobId}:
+    parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Get upload job status.
+      description: Returns the current status of an upload job.
+      operationId: getUploadJobStatus
+      responses:
+        '200':
+          description: Upload job status retrieved successfully.
+          headers:
+            Location:
+              schema:
+                type: string
+                description: >
+                  URL to download the file (only present when status is COMPLETED). Example: 
+                  http://localhost:8080/files/123e4567-e89b-12d3-a456-426614174000
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadJobStatus'
+        '400':
+          $ref: 'errors.yml#/components/responses/InvalidRequestParameters'
+        401:
+          $ref: 'errors.yml#/components/responses/Unauthorized'
+        403:
+          $ref: 'errors.yml#/components/responses/Forbidden'
+        '404':
+          $ref: 'errors.yml#/components/responses/ResourceNotFound'
+        500:
+          $ref: 'errors.yml#/components/responses/InternalServerError'
+    post:
+      summary: Upload file for job.
+      description: Uploads a file for the specified job ID.
+      operationId: uploadFile
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The file to upload. Exactly one file must be provided, and no additional fields are allowed.
+              additionalProperties: false
+      responses:
+        '201':
+          description: File uploaded successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadJobStatus'
+        '400':
+          $ref: 'errors.yml#/components/responses/InvalidRequestParameters'
+        401:
+          $ref: 'errors.yml#/components/responses/Unauthorized'
+        403:
+          $ref: 'errors.yml#/components/responses/Forbidden'
+        '404':
+          $ref: 'errors.yml#/components/responses/ResourceNotFound'
+        '409':
+          $ref: 'errors.yml#/components/responses/Conflict'
+        500:
+          $ref: 'errors.yml#/components/responses/InternalServerError'
+  /files/{fileId}:
+    parameters:
+      - name: fileId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Download file
+      description: Downloads a file by its ID
+      operationId: downloadFile
+      responses:
+        '200':
+          description: File downloaded successfully
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                description: Contains the filename for the downloaded file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: 'errors.yml#/components/responses/InvalidRequestParameters'
+        401:
+          $ref: 'errors.yml#/components/responses/Unauthorized'
+        403:
+          $ref: 'errors.yml#/components/responses/Forbidden'
+        '404':
+          $ref: 'errors.yml#/components/responses/ResourceNotFound'
+        500:
+          $ref: 'errors.yml#/components/responses/InternalServerError'
+    delete:
+      summary: Delete file
+      description: Deletes a file by its ID
+      operationId: deleteFile
+      responses:
+      '204':
+        description: File deleted successfully. No content returned.
+      '400':
+        $ref: 'errors.yml#/components/responses/InvalidRequestParameters'
+      401:
+        $ref: 'errors.yml#/components/responses/Unauthorized'
+      403:
+        $ref: 'errors.yml#/components/responses/Forbidden'
+      '404':
+        $ref: 'errors.yml#/components/responses/ResourceNotFound'
+      500:
+        $ref: 'errors.yml#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    UploadJob:
+      type: object
+      properties:
+        jobId:
+          type: string
+          format: uuid
+          description: The UUID of the created upload job
+        filename:
+          type: string
+          description: The name of the file to be uploaded
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the job was created
+    UploadJobStatus:
+      type: object
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        filename:
+          type: string
+          description: The name of the file being uploaded
+        status:
+          type: string
+          enum: [ PENDING, UPLOADING, VIRUS_CHECKING, COMPLETED, FAILED ]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        error:
+          type: string
+          description: Error message if status is FAILED
+        fileId:
+          type: string
+          format: uuid
+          description: The ID of the uploaded file (only present when status is COMPLETED)

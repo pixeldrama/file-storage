@@ -1,0 +1,151 @@
+openapi: 3.0.3
+info:
+  title: errors
+  version: versionNumber
+paths:
+components:
+  responses:
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RFC7807Problem'
+          example:
+            timestamp: "2019-08-24T14:15:22Z"
+            title: "Conflict"
+            status: 409
+            detail: "the requested resource cannot be handled"
+            traceId: "avx1234asd"
+            instance: "http://example.com"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RFC7807Problem'
+          example:
+            timestamp: "2019-08-24T14:15:22Z"
+            type: "about:blank"
+            title: "Forbidden"
+            status: 403
+            detail: "the requested resource is not accessible"
+            traceId: "avx1234asd"
+            instance: "http://example.com"
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RFC7807Problem'
+          example:
+            timestamp: "2019-08-24T14:15:22Z"
+            type: "about:blank"
+            title: "InternalServerError"
+            status: 500
+            traceId: "avx1234asd"
+            instance: "http://example.com"
+    InvalidRequestParameters:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RFC7807Problem'
+          example:
+            timestamp: "2019-08-24T14:15:22Z"
+            type: "about:blank"
+            title: "Bad Request"
+            status: 400
+            detail: "JSON parse error"
+            traceId: "avx1234asd"
+            instance: "http://example.com"
+            violations:
+              - field: "Company.companyId"
+                message: "must be greater than or equal to 1"
+    ResourceNotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RFC7807Problem'
+          example:
+            timestamp: "2019-08-24T14:15:22Z"
+            type: "about:blank"
+            title: "Not Found"
+            status: 404
+            detail: "the requested resource is not available"
+            traceId: "avx1234asd"
+            instance: "http://example.com"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/OAuthProblem'
+          example:
+            error: invalid_token
+            error_description: Access token expired
+  schemas:
+    OAuthProblem:
+      description: Error during authentication
+      properties:
+        error:
+          type: string
+          description: error message
+          example: invalid_token
+        error_description:
+          type: string
+          description: further description of the error pattern
+          example: Access token expired
+    RFC7807Problem:
+      description: Detailed information on the error
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: error time as UTC date-time
+        type:
+          type: string
+          format: uri
+          description: further information on the error
+          default: 'about:blank'
+        title:
+          type: string
+          description: error message
+          example: Bad Request
+        status:
+          type: integer
+          format: int32
+          description: HTTP status code based on the following error codes (https://tools.ietf.org/html/rfc2616#section-10)
+          example: 400
+          minimum: 100
+          maximum: 600
+          exclusiveMaximum: true
+        detail:
+          type: string
+          description: further description of the error pattern
+          example: JSON parse error
+        traceId:
+          type: string
+          description: Trace id of the request
+          example: avx1234asd
+        instance:
+          type: string
+          format: uri
+          description: calling path
+        violations:
+          type: array
+          description: list of fields with incorrect content
+          items:
+            $ref: '#/components/schemas/Violation'
+    Violation:
+      description: description of a faulty field value
+      properties:
+        field:
+          type: string
+          description: name of the field
+          example: Company.companyId
+        message:
+          type: string
+          description: error description
+          example: must be greater than or equal to 1
