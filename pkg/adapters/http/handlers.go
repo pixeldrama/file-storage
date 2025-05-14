@@ -11,6 +11,10 @@ import (
 	"github.com/google/uuid"
 )
 
+type CreateUploadJobRequest struct {
+	Filename string `json:"filename" binding:"required"`
+}
+
 type Handlers struct {
 	fileStorage domain.FileStorage
 	jobRepo     domain.UploadJobRepository
@@ -24,11 +28,18 @@ func NewHandlers(fileStorage domain.FileStorage, jobRepo domain.UploadJobReposit
 }
 
 func (h *Handlers) CreateUploadJob(c *gin.Context) {
+	var req CreateUploadJobRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload: " + err.Error()})
+		return
+	}
+
 	jobID := uuid.New().String()
 	now := time.Now()
 
 	job := &domain.UploadJob{
 		ID:        jobID,
+		Filename:  req.Filename,
 		Status:    "PENDING",
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -53,6 +64,10 @@ func (h *Handlers) GetUploadJobStatus(c *gin.Context) {
 	if job == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Upload job not found"})
 		return
+	}
+
+	if job.Status == "COMPLETED" && job.FileID != "" {
+		c.Header("Location", fmt.Sprintf("/api/files/%s", job.FileID))
 	}
 
 	c.JSON(http.StatusOK, job)
@@ -118,16 +133,38 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 func (h *Handlers) DownloadFile(c *gin.Context) {
 	fileID := c.Param("fileId")
 
+	// Retrieve job to get the original filename
+	job, err := h.jobRepo.GetByFileID(c.Request.Context(), fileID)
+	if err != nil {
+		// This typically means a repository-level error, not just "job not found"
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve job details: " + err.Error()})
+		return
+	}
+	// If job is nil, it means no job is associated with this fileID, which could be an issue
+	// or the file was not uploaded via the job system (if that's possible).
+	// For this flow, we assume a job must exist.
+	if job == nil {
+		// Log this as it might be an unexpected state. For the client, it's still a file not found.
+		// Consider if a different error code is more appropriate if a job *should* always exist.
+		c.JSON(http.StatusNotFound, gin.H{"error": "File metadata not found"})
+		return
+	}
+
 	reader, err := h.fileStorage.Download(c.Request.Context(), fileID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found in storage"})
 		return
 	}
 	defer reader.Close()
 
+	filename := job.Filename
+	if filename == "" { // Fallback if filename wasn't stored, though it should be
+		filename = fileID
+	}
+
 	c.Header("Content-Description", "File Transfer")
 	c.Header("Content-Transfer-Encoding", "binary")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileID))
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename)) // Use original filename
 	c.Header("Content-Type", "application/octet-stream")
 	c.Stream(func(w io.Writer) bool {
 		_, err := io.Copy(w, reader)

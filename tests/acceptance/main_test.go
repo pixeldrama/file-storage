@@ -6,20 +6,19 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/benjamin/file-storage-go/pkg/config"
-	// Assuming these are the correct paths from your main.go
-	appHttp "github.com/benjamin/file-storage-go/pkg/adapters/http"
+	"github.com/benjamin/file-storage-go/cmd/server"
 	"github.com/benjamin/file-storage-go/pkg/adapters/metrics"
 	"github.com/benjamin/file-storage-go/pkg/adapters/repository"
 	"github.com/benjamin/file-storage-go/pkg/adapters/storage"
+	"github.com/benjamin/file-storage-go/pkg/config"
 	"github.com/benjamin/file-storage-go/pkg/domain"
 	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -51,19 +50,33 @@ func TestMain(m *testing.M) {
 		}
 	}
 
+	// If API_BASE_URL is set, try to parse port from it for the test server.
+	// Otherwise, use a dynamic port.
+	var explicitPort string
+	envApiBaseURL := getEnv("API_BASE_URL", "") // Use getEnv from file_lifecycle_test.go
+	if envApiBaseURL != "" {
+		parsedURL, err := url.Parse(envApiBaseURL)
+		if err == nil && parsedURL.Port() != "" {
+			explicitPort = parsedURL.Port()
+			fmt.Printf("INFO: Will attempt to use explicit port %s from API_BASE_URL for test server listener.\n", explicitPort)
+		}
+	}
+
 	// Initialize dependencies
 	metricsCollector := metrics.NewPrometheusMetrics()
 
-	var fileStorageService domain.FileStorage // Use the interface type
-
+	var fileStorageService domain.FileStorage
 	if useMockStorage {
 		fmt.Println("INFO: Initializing MockStorage.")
 		fileStorageService = storage.NewMockStorage()
 	} else {
 		fmt.Println("INFO: Initializing AzureBlobStorage. Ensure Azure environment variables are set.")
 		var err error
+		if cfg.BlobStorageURL == "" { // Add a check for safety, though LoadConfig should handle it
+			log.Fatalf("AzureBlobStorage requires BLOB_STORAGE_URL. It's missing and not using mock.")
+		}
 		fileStorageService, err = storage.NewAzureBlobStorage(
-			cfg.BlobStorageURL, // These must be valid if useMockStorage is false
+			cfg.BlobStorageURL,
 			cfg.StorageKey,
 			cfg.ContainerName,
 			metricsCollector,
@@ -74,24 +87,17 @@ func TestMain(m *testing.M) {
 	}
 
 	jobRepo := repository.NewInMemoryRepository()
-	handlers := appHttp.NewHandlers(fileStorageService, jobRepo) // Pass the interface
 
-	// Setup router
-	r := gin.New()        // Using gin.New() instead of gin.Default() for more control in tests
-	r.Use(gin.Recovery()) // Add recovery middleware
+	// Setup router using the new centralized function
+	r := server.SetupRouter(fileStorageService, jobRepo)
 
-	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
-	api := r.Group("/api") // Assuming API prefix from OpenAPI spec and main.go
-	{
-		api.POST("/upload-jobs", handlers.CreateUploadJob)
-		api.GET("/upload-jobs/:jobId", handlers.GetUploadJobStatus)
-		api.POST("/upload-jobs/:jobId", handlers.UploadFile)
-		api.GET("/files/:fileId", handlers.DownloadFile)
-		// api.DELETE("/files/:fileId", handlers.DeleteFile) // COMMENTED OUT: Handler not defined in app code
+	// Start the server on a dynamic port or explicit port
+	var serverAddr string
+	if explicitPort != "" {
+		serverAddr = ":" + explicitPort
+	} else {
+		serverAddr = "localhost:0" // OS picks a free port
 	}
-
-	// Start the server on a dynamic port
-	serverAddr := "localhost:0" // OS picks a free port
 
 	listener, err := net.Listen("tcp", serverAddr)
 	if err != nil {
@@ -99,13 +105,14 @@ func TestMain(m *testing.M) {
 	}
 	testServerListener = listener // Store listener to get the address
 
-	// Update global apiBaseURL based on the dynamically chosen port from the listener
-	chosenHost := "localhost" // We are listening on localhost
+	// Update global apiBaseURL from file_lifecycle_test.go
+	// Ensure this variable is accessible or re-declared in this package if needed
+	// For now, assuming apiBaseURL (from file_lifecycle_test.go) will be updated by the test runner environment
+	// or we update it directly here.
 	chosenPort := testServerListener.Addr().(*net.TCPAddr).Port
-	apiBaseURL = fmt.Sprintf("http://%s:%d", chosenHost, chosenPort)
+	apiBaseURL = fmt.Sprintf("http://localhost:%d", chosenPort)
 	fmt.Printf("INFO: Test server starting on %s\n", apiBaseURL)
 
-	// Initialize global authToken
 	defaultTestToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJpc3MiOiJ0ZXN0LWlzc3VlciIsImV4cCI6MTc0NTA4MTYwMCwiaWF0IjoxNzE3NzQ0MDAwfQ.placeholder_sig_for_testing_only"
 	authToken = getEnv("API_AUTH_TOKEN", defaultTestToken)
 	if authToken == defaultTestToken && os.Getenv("API_AUTH_TOKEN") == "" { // Check if it's the default because env var was empty

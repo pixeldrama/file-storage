@@ -94,7 +94,7 @@ func decodeJSONResponse(t *testing.T, resp *http.Response, target interface{}) {
 // --- API Specific Client Functions ---
 
 func createUploadJobClient(t *testing.T, httpClient *http.Client) UploadJobResponse {
-	url := fmt.Sprintf("%s/upload-jobs", apiBaseURL)
+	url := fmt.Sprintf("%s/api/upload-jobs", apiBaseURL)
 	// The API spec says POST /upload-jobs, but doesn't specify a body for creation.
 	// Assuming it needs an empty body or a body indicating the filename (which is in the response).
 	// For now, sending a minimal JSON with filename, adjust if API needs different.
@@ -111,7 +111,7 @@ func createUploadJobClient(t *testing.T, httpClient *http.Client) UploadJobRespo
 }
 
 func uploadFileForJobClient(t *testing.T, httpClient *http.Client, jobId string, filePath string) UploadJobStatusResponse {
-	url := fmt.Sprintf("%s/upload-jobs/%s", apiBaseURL, jobId)
+	url := fmt.Sprintf("%s/api/upload-jobs/%s", apiBaseURL, jobId)
 
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
@@ -140,7 +140,7 @@ func uploadFileForJobClient(t *testing.T, httpClient *http.Client, jobId string,
 }
 
 func getJobStatusClient(t *testing.T, httpClient *http.Client, jobId string) UploadJobStatusResponse {
-	url := fmt.Sprintf("%s/upload-jobs/%s", apiBaseURL, jobId)
+	url := fmt.Sprintf("%s/api/upload-jobs/%s", apiBaseURL, jobId)
 	req := createAPIRequest(t, http.MethodGet, url, nil)
 
 	resp := executeAPIRequest(t, httpClient, req, http.StatusOK)
@@ -151,7 +151,7 @@ func getJobStatusClient(t *testing.T, httpClient *http.Client, jobId string) Upl
 }
 
 func downloadFileClient(t *testing.T, httpClient *http.Client, fileId string) ([]byte, string) {
-	url := fmt.Sprintf("%s/files/%s", apiBaseURL, fileId)
+	url := fmt.Sprintf("%s/api/files/%s", apiBaseURL, fileId)
 	req := createAPIRequest(t, http.MethodGet, url, nil)
 
 	resp := executeAPIRequest(t, httpClient, req, http.StatusOK)
@@ -165,7 +165,7 @@ func downloadFileClient(t *testing.T, httpClient *http.Client, fileId string) ([
 }
 
 func deleteFileClient(t *testing.T, httpClient *http.Client, fileId string) {
-	url := fmt.Sprintf("%s/files/%s", apiBaseURL, fileId)
+	url := fmt.Sprintf("%s/api/files/%s", apiBaseURL, fileId)
 	req := createAPIRequest(t, http.MethodDelete, url, nil)
 	executeAPIRequest(t, httpClient, req, http.StatusNoContent)
 }
@@ -221,11 +221,11 @@ func TestFileLifecycle_SuccessfulUploadDownloadDelete(t *testing.T) {
 	// The OpenAPI spec mentions a Location header on the GET /upload-jobs/{jobId} endpoint
 	// when status is COMPLETED. Let's verify that too.
 	// We need to make the call again to get the headers specifically after completion.
-	finalJobStatusReq := createAPIRequest(t, http.MethodGet, fmt.Sprintf("%s/upload-jobs/%s", apiBaseURL, job.JobID), nil)
+	finalJobStatusReq := createAPIRequest(t, http.MethodGet, fmt.Sprintf("%s/api/upload-jobs/%s", apiBaseURL, job.JobID), nil)
 	finalJobStatusResp := executeAPIRequest(t, httpClient, finalJobStatusReq, http.StatusOK)
 	locationHeader := finalJobStatusResp.Header.Get("Location")
 	assert.NotEmpty(t, locationHeader, "Location header should be present for completed job")
-	expectedLocationSuffix := fmt.Sprintf("/files/%s", fileId)
+	expectedLocationSuffix := fmt.Sprintf("/api/files/%s", fileId)
 	assert.True(t, strings.HasSuffix(locationHeader, expectedLocationSuffix),
 		fmt.Sprintf("Location header '%s' should end with '%s'", locationHeader, expectedLocationSuffix))
 	finalJobStatusResp.Body.Close()
@@ -251,7 +251,7 @@ func TestFileLifecycle_SuccessfulUploadDownloadDelete(t *testing.T) {
 
 	// 8. Attempt to download the deleted file and expect a 404
 	t.Log("Step 8: Attempting to download deleted file (expecting 404)...")
-	url := fmt.Sprintf("%s/files/%s", apiBaseURL, fileId)
+	url := fmt.Sprintf("%s/api/files/%s", apiBaseURL, fileId)
 	req := createAPIRequest(t, http.MethodGet, url, nil)
 	_ = executeAPIRequest(t, httpClient, req, http.StatusNotFound) // Expect 404
 	t.Log("Download attempt for deleted file correctly resulted in 404.")

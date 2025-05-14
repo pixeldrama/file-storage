@@ -49,3 +49,15 @@ func (r *InMemoryRepository) Update(ctx context.Context, job *domain.UploadJob) 
 	r.jobs[job.ID] = job
 	return nil
 }
+
+func (r *InMemoryRepository) GetByFileID(ctx context.Context, fileID string) (*domain.UploadJob, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, job := range r.jobs {
+		if job.FileID == fileID {
+			return job, nil
+		}
+	}
+	return nil, nil // Or an error indicating not found
+}

@@ -3,13 +3,11 @@ package main
 import (
 	"fmt"
 
-	"github.com/benjamin/file-storage-go/pkg/adapters/http"
+	"github.com/benjamin/file-storage-go/cmd/server"
 	"github.com/benjamin/file-storage-go/pkg/adapters/metrics"
 	"github.com/benjamin/file-storage-go/pkg/adapters/repository"
 	"github.com/benjamin/file-storage-go/pkg/adapters/storage"
 	"github.com/benjamin/file-storage-go/pkg/config"
-	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -32,19 +30,7 @@ func main() {
 
 	jobRepo := repository.NewInMemoryRepository()
 
-	handlers := http.NewHandlers(fileStorage, jobRepo)
-
-	r := gin.Default()
-
-	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
-
-	api := r.Group("/api")
-	{
-		api.POST("/upload-jobs", handlers.CreateUploadJob)
-		api.GET("/upload-jobs/:jobId", handlers.GetUploadJobStatus)
-		api.POST("/upload-jobs/:jobId", handlers.UploadFile)
-		api.GET("/files/:fileId", handlers.DownloadFile)
-	}
+	r := server.SetupRouter(fileStorage, jobRepo)
 
 	if err := r.Run(":" + cfg.ServerPort); err != nil {
 		panic(fmt.Sprintf("Failed to start server: %v", err))
