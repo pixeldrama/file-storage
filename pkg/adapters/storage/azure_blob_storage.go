@@ -16,13 +16,13 @@ type AzureBlobStorage struct {
 	metrics       domain.MetricsCollector
 }
 
-func NewAzureBlobStorage(accountURL, accountKey, containerName string, metrics domain.MetricsCollector) (*AzureBlobStorage, error) {
-	credential, err := azblob.NewSharedKeyCredential(accountURL, accountKey)
+func NewAzureBlobStorage(accountName, serviceURL, accountKey, containerName string, metrics domain.MetricsCollector) (*AzureBlobStorage, error) {
+	credential, err := azblob.NewSharedKeyCredential(accountName, accountKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create credential: %w", err)
 	}
 
-	client, err := azblob.NewClientWithSharedKeyCredential(accountURL, credential, nil)
+	client, err := azblob.NewClientWithSharedKeyCredential(serviceURL, credential, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client: %w", err)
 	}

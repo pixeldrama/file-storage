@@ -8,10 +8,11 @@ import (
 )
 
 type Config struct {
-	ServerPort     string
-	BlobStorageURL string
-	ContainerName  string
-	StorageKey     string
+	ServerPort      string
+	BlobStorageURL  string
+	BlobAccountName string
+	ContainerName   string
+	StorageKey      string
 }
 
 func LoadConfig() (*Config, error) {
@@ -25,6 +26,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("BLOB_STORAGE_URL", "")
 	viper.SetDefault("CONTAINER_NAME", "files")
 	viper.SetDefault("VAULT_URL", "")
+	viper.SetDefault("USE_AZURITE", "false")
 
 	// Read config file if it exists
 	if err := viper.ReadInConfig(); err != nil {
@@ -34,25 +36,37 @@ func LoadConfig() (*Config, error) {
 	}
 
 	// Get storage key from vault (mocked for now)
-	storageKey := getStorageKeyFromVault()
+	storageKey := getStorageKeyFromVault(viper.GetBool("USE_AZURITE"))
 
 	config := &Config{
-		ServerPort:     viper.GetString("SERVER_PORT"),
-		BlobStorageURL: viper.GetString("BLOB_STORAGE_URL"),
-		ContainerName:  viper.GetString("CONTAINER_NAME"),
-		StorageKey:     storageKey,
+		ServerPort:      viper.GetString("SERVER_PORT"),
+		BlobStorageURL:  viper.GetString("BLOB_STORAGE_URL"),
+		BlobAccountName: "",
+		ContainerName:   viper.GetString("CONTAINER_NAME"),
+		StorageKey:      storageKey,
 	}
 
-	// Validate required fields
-	if config.BlobStorageURL == "" {
-		return nil, fmt.Errorf("BLOB_STORAGE_URL is required")
+	if viper.GetBool("USE_AZURITE") {
+		config.BlobStorageURL = "http://127.0.0.1:10000/devstoreaccount1"
+		config.BlobAccountName = "devstoreaccount1"
+		// The container name is part of the BlobStorageURL for Azurite,
+		// or it can be created if it doesn't exist.
+		// We'll keep ContainerName for potential separate use, but Azurite's default setup includes it in the URL.
+	}
+
+	if os.Getenv("USE_MOCK_STORAGE") != "true" && !viper.GetBool("USE_AZURITE") && config.BlobStorageURL == "" {
+		return nil, fmt.Errorf("BLOB_STORAGE_URL is required when not using mock storage (USE_MOCK_STORAGE is not 'true') and not using Azurite (USE_AZURITE is not 'true')")
 	}
 
 	return config, nil
 }
 
 // Mocked vault integration
-func getStorageKeyFromVault() string {
+func getStorageKeyFromVault(useAzurite bool) string {
+	if useAzurite {
+		// Default Azurite account key
+		return "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
+	}
 	// In a real implementation, this would fetch the key from Azure Key Vault
 	// For now, we'll use an environment variable
 	key := os.Getenv("STORAGE_KEY")
