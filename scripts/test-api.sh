@@ -66,7 +66,7 @@ if [ -n "$FILE_ID" ] && [ "$FILE_ID" != "null" ]; then
     echo -e "\n\n--- 4. Download File ---"
     DOWNLOADED_FILE_NAME="${DOWNLOADED_FILE_PREFIX}_${FILE_ID}.txt"
     echo "GET $BASE_URL/files/$FILE_ID -o $DOWNLOADED_FILE_NAME"
-    curl -X GET "$BASE_URL/files/$FILE_ID" -o "$DOWNLOADED_FILE_NAME"
+    curl -L -v --max-time 30 -X GET "$BASE_URL/files/$FILE_ID" -o "$DOWNLOADED_FILE_NAME"
     
     if [ -f "$DOWNLOADED_FILE_NAME" ]; then
         echo -e "\nFile downloaded as $DOWNLOADED_FILE_NAME"

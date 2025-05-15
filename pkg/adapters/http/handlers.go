@@ -163,11 +163,15 @@ func (h *Handlers) DownloadFile(c *gin.Context) {
 	}
 
 	c.Header("Content-Description", "File Transfer")
-	c.Header("Content-Transfer-Encoding", "binary")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename)) // Use original filename
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	c.Header("Content-Type", "application/octet-stream")
-	c.Stream(func(w io.Writer) bool {
-		_, err := io.Copy(w, reader)
-		return err == nil
-	})
+	
+	// Instead of using c.Stream which uses chunked encoding, copy the file directly to the response
+	c.Writer.WriteHeader(http.StatusOK)
+	_, err = io.Copy(c.Writer, reader)
+	if err != nil {
+		// Log error but can't really respond with an error status at this point
+		// since headers have already been sent
+		fmt.Printf("Error copying file to response: %v\n", err)
+	}
 }
