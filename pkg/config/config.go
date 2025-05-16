@@ -16,6 +16,16 @@ type Config struct {
 	StorageKey      string
 	VaultAddress    string `mapstructure:"VAULT_ADDRESS"`
 	VaultToken      string `mapstructure:"VAULT_TOKEN"`
+	DBHost          string `mapstructure:"DB_HOST"`
+	DBPort          string `mapstructure:"DB_PORT"`
+	DBName          string `mapstructure:"DB_NAME"`
+	DBUser          string `mapstructure:"DB_USER"`
+	DBPassword      string `mapstructure:"DB_PASSWORD"`
+}
+
+func (c *Config) GetDBConnString() string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		c.DBUser, c.DBPassword, c.DBHost, c.DBPort, c.DBName)
 }
 
 func LoadConfig() (*Config, error) {
@@ -31,6 +41,11 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("VAULT_ADDRESS", "http://localhost:8200")
 	viper.SetDefault("VAULT_TOKEN", "dev-token")
 	viper.SetDefault("USE_AZURITE", "false")
+	viper.SetDefault("DB_HOST", "localhost")
+	viper.SetDefault("DB_PORT", "5432")
+	viper.SetDefault("DB_NAME", "file_storage")
+	viper.SetDefault("DB_USER", "postgres")
+	viper.SetDefault("DB_PASSWORD", "postgres")
 
 	// Read config file if it exists
 	if err := viper.ReadInConfig(); err != nil {
@@ -46,6 +61,16 @@ func LoadConfig() (*Config, error) {
 		ContainerName:   viper.GetString("CONTAINER_NAME"),
 		VaultAddress:    viper.GetString("VAULT_ADDRESS"),
 		VaultToken:      viper.GetString("VAULT_TOKEN"),
+		DBHost:          viper.GetString("DB_HOST"),
+		DBPort:          viper.GetString("DB_PORT"),
+		DBName:          viper.GetString("DB_NAME"),
+		DBUser:          viper.GetString("DB_USER"),
+		DBPassword:      viper.GetString("DB_PASSWORD"),
+	}
+
+	// Skip storage validation if flag is set
+	if os.Getenv("SKIP_STORAGE_VALIDATION") == "true" {
+		return config, nil
 	}
 
 	if viper.GetBool("USE_AZURITE") {

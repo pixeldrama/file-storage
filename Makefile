@@ -1,4 +1,4 @@
-.PHONY: help start docker-compose test-api local setup-azure setup-azurite setup setup-vault vault-init
+.PHONY: help start docker-compose test-api local setup-azure setup-azurite setup setup-vault vault-init setup-db migrate
 
 help:
 	@echo "Available commands:"
@@ -10,7 +10,9 @@ help:
 	@echo "  make setup-azurite  - Ensures Azurite container is running and creates the 'files' container"
 	@echo "  make setup-vault    - Ensures Vault container is running"
 	@echo "  make vault-init     - Initializes Vault with storage credentials"
-	@echo "  make setup          - Runs all setup targets (azure, azurite, vault)"
+	@echo "  make setup          - Runs all setup targets (azure, azurite, vault, db)"
+	@echo "  make setup-db       - Ensures PostgreSQL is running"
+	@echo "  make migrate        - Runs database migrations"
 
 start:
 	@echo "Starting Go application..."
@@ -52,5 +54,18 @@ vault-init:
 	@echo "Initializing Vault with storage credentials..."
 	./scripts/init-vault.sh
 
-setup: setup-azure setup-azurite setup-vault vault-init
+setup-db:
+	@echo "Ensuring PostgreSQL is running..."
+	docker-compose up -d postgres
+	@echo "Waiting for PostgreSQL to be ready..."
+	@until docker-compose exec -T postgres pg_isready -U postgres > /dev/null 2>&1; do \
+		echo "Waiting for PostgreSQL to become available..."; \
+		sleep 1; \
+	done
+
+migrate:
+	@echo "Running database migrations..."
+	go run cmd/migrate/main.go
+
+setup: setup-azure setup-azurite setup-vault vault-init setup-db migrate
 	@echo "Setup complete!" 
