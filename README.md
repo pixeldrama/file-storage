@@ -53,73 +53,36 @@ For local development with Azurite, set:
 export USE_AZURITE=true
 ```
 
+## Vault Integration
+
+The service now supports HashiCorp Vault for secure storage of credentials. To use Vault:
+
+1. Start the Vault server using Docker Compose:
+```bash
+docker-compose up -d vault
+```
+
+2. Initialize Vault with your storage credentials:
+```bash
+# Set your storage credentials as environment variables
+export AZURE_STORAGE_ACCOUNT="your_account_name"
+export AZURE_STORAGE_KEY="your_storage_key"
+export BLOB_STORAGE_URL="your_storage_url"
+export CONTAINER_NAME="your_container_name"
+
+# Run the initialization script
+./scripts/init-vault.sh
+```
+
+3. Configure the application to use Vault:
+```bash
+export VAULT_ADDRESS="http://localhost:8200"
+export VAULT_TOKEN="dev-token"  # Use a secure token in production
+```
+
+The service will now fetch storage credentials from Vault instead of environment variables.
+
 ## API Endpoints
 
 ### Create Upload Job
 ```
-POST /api/upload-jobs
-```
-Creates a new upload job and returns a UUID.
-
-### Get Upload Job Status
-```
-GET /api/upload-jobs/{jobId}
-```
-Returns the current status of an upload job.
-
-### Upload File
-```
-POST /api/upload-jobs/{jobId}
-Content-Type: multipart/form-data
-```
-Uploads a file for the specified job ID. Files are automatically scanned for viruses after upload.
-
-### Download File
-```
-GET /api/files/{fileId}
-```
-Downloads a file by its ID. Files are only available for download after passing antivirus scanning. If a file is still being scanned, the request will return a 404 status code.
-
-### Metrics
-```
-GET /metrics
-```
-Prometheus metrics endpoint.
-
-## Building and Running
-
-1. Install dependencies:
-```bash
-go mod download
-```
-
-2. Build the service:
-```bash
-go build
-```
-
-3. Run the service:
-```bash
-./file-storage-go
-```
-
-## Development
-
-For development purposes, the vault integration is mocked. The storage key can be provided through the `STORAGE_KEY` environment variable or will default to a mock value.
-
-Use `make local` to run the service with Azurite for local development.
-
-## Testing
-
-Use `make test-api` to run API tests against a running instance of the service. Ensure Azurite is running and the 'files' container exists before testing.
-
-## Metrics
-
-The service exposes the following Prometheus metrics:
-
-- `file_upload_duration_seconds`: Histogram of file upload durations
-- `file_upload_size_bytes`: Histogram of uploaded file sizes
-
-## License
-
-MIT 

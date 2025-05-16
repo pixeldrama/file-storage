@@ -1,4 +1,4 @@
-.PHONY: help start docker-compose test-api local setup-azure setup-azurite setup
+.PHONY: help start docker-compose test-api local setup-azure setup-azurite setup setup-vault vault-init
 
 help:
 	@echo "Available commands:"
@@ -8,7 +8,9 @@ help:
 	@echo "  make local          - Starts the Go application with Azurite for local development"
 	@echo "  make setup-azure    - Ensures Azure CLI container is running"
 	@echo "  make setup-azurite  - Ensures Azurite container is running and creates the 'files' container"
-	@echo "  make setup          - Runs setup-azure and setup-azurite"
+	@echo "  make setup-vault    - Ensures Vault container is running"
+	@echo "  make vault-init     - Initializes Vault with storage credentials"
+	@echo "  make setup          - Runs all setup targets (azure, azurite, vault)"
 
 start:
 	@echo "Starting Go application..."
@@ -37,5 +39,18 @@ setup-azurite:
 	sleep 2
 	docker exec azure-cli az storage container create --name files --connection-string 'DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;'
 
-setup: setup-azure setup-azurite
+setup-vault:
+	@echo "Ensuring Vault is running..."
+	docker-compose up -d vault
+	@echo "Waiting for Vault to be ready..."
+	@until curl -fs "http://localhost:8200/v1/sys/health" > /dev/null 2>&1; do \
+		echo "Waiting for Vault to become available..."; \
+		sleep 1; \
+	done
+
+vault-init:
+	@echo "Initializing Vault with storage credentials..."
+	./scripts/init-vault.sh
+
+setup: setup-azure setup-azurite setup-vault vault-init
 	@echo "Setup complete!" 

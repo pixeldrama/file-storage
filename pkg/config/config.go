@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/benjamin/file-storage-go/pkg/services/secrets"
 	"github.com/spf13/viper"
 )
 
@@ -13,6 +14,8 @@ type Config struct {
 	BlobAccountName string
 	ContainerName   string
 	StorageKey      string
+	VaultAddress    string `mapstructure:"VAULT_ADDRESS"`
+	VaultToken      string `mapstructure:"VAULT_TOKEN"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -25,7 +28,8 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("SERVER_PORT", "8080")
 	viper.SetDefault("BLOB_STORAGE_URL", "")
 	viper.SetDefault("CONTAINER_NAME", "files")
-	viper.SetDefault("VAULT_URL", "")
+	viper.SetDefault("VAULT_ADDRESS", "http://localhost:8200")
+	viper.SetDefault("VAULT_TOKEN", "dev-token")
 	viper.SetDefault("USE_AZURITE", "false")
 
 	// Read config file if it exists
@@ -35,23 +39,47 @@ func LoadConfig() (*Config, error) {
 		}
 	}
 
-	// Get storage key from vault (mocked for now)
-	storageKey := getStorageKeyFromVault(viper.GetBool("USE_AZURITE"))
-
 	config := &Config{
 		ServerPort:      viper.GetString("SERVER_PORT"),
 		BlobStorageURL:  viper.GetString("BLOB_STORAGE_URL"),
 		BlobAccountName: "",
 		ContainerName:   viper.GetString("CONTAINER_NAME"),
-		StorageKey:      storageKey,
+		VaultAddress:    viper.GetString("VAULT_ADDRESS"),
+		VaultToken:      viper.GetString("VAULT_TOKEN"),
 	}
 
 	if viper.GetBool("USE_AZURITE") {
 		config.BlobStorageURL = "http://127.0.0.1:10000/devstoreaccount1"
 		config.BlobAccountName = "devstoreaccount1"
-		// The container name is part of the BlobStorageURL for Azurite,
-		// or it can be created if it doesn't exist.
-		// We'll keep ContainerName for potential separate use, but Azurite's default setup includes it in the URL.
+		config.StorageKey = "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
+	} else {
+		// Try to get storage key from environment first
+		storageKey := os.Getenv("STORAGE_KEY")
+		if storageKey == "" {
+			// If not in environment, try to get from Vault
+			vaultService, err := secrets.NewVaultService(config.VaultAddress, config.VaultToken)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create vault service: %w", err)
+			}
+
+			creds, err := vaultService.GetStorageCredentials()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get storage credentials from vault: %w", err)
+			}
+
+			config.StorageKey = creds.StorageKey
+			if config.BlobAccountName == "" {
+				config.BlobAccountName = creds.AccountName
+			}
+			if config.BlobStorageURL == "" {
+				config.BlobStorageURL = creds.StorageURL
+			}
+			if config.ContainerName == "" {
+				config.ContainerName = creds.ContainerName
+			}
+		} else {
+			config.StorageKey = storageKey
+		}
 	}
 
 	if os.Getenv("USE_MOCK_STORAGE") != "true" && !viper.GetBool("USE_AZURITE") && config.BlobStorageURL == "" {
@@ -59,20 +87,4 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return config, nil
-}
-
-// Mocked vault integration
-func getStorageKeyFromVault(useAzurite bool) string {
-	if useAzurite {
-		// Default Azurite account key
-		return "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
-	}
-	// In a real implementation, this would fetch the key from Azure Key Vault
-	// For now, we'll use an environment variable
-	key := os.Getenv("STORAGE_KEY")
-	if key == "" {
-		// For development purposes, use a mock key
-		return "mock-storage-key"
-	}
-	return key
 }
