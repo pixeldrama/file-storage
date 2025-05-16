@@ -177,7 +177,6 @@ func (h *Handlers) DeleteFile(c *gin.Context) {
 		return
 	}
 
-	// If the job doesn't exist, we still try to delete the file
 	if job != nil {
 		job.Status = "DELETED"
 		job.UpdatedAt = time.Now()
