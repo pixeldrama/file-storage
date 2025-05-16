@@ -11,5 +11,13 @@ services:
     volumes:
       - azurite_data:/data
 
+  azure-cli:
+    image: mcr.microsoft.com/azure-cli
+    container_name: azure-cli
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    command: sleep infinity
+
 volumes:
   azurite_data: 
