@@ -76,11 +76,13 @@ func TestMain(m *testing.M) {
 			log.Fatalf("AzureBlobStorage requires BLOB_STORAGE_URL. It's missing and not using mock.")
 		}
 		fileStorageService, err = storage.NewAzureBlobStorage(
+			cfg.BlobAccountName,
 			cfg.BlobStorageURL,
 			cfg.StorageKey,
 			cfg.ContainerName,
 			metricsCollector,
 		)
+
 		if err != nil {
 			log.Fatalf("Failed to initialize AzureBlobStorage: %v. If you intended to use mock storage, set USE_MOCK_STORAGE=true or ensure Azure config env vars are missing.", err)
 		}
