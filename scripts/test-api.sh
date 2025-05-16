@@ -81,9 +81,6 @@ else
 fi
 
 
-# The DeleteFile endpoint is commented out in setup.go, so it's not included here.
-# // api.DELETE("/files/:fileId", handlers.DeleteFile)
-
 echo -e "\n\n### Testing Complete ###"
 echo "Ensure your server is running on http://localhost:8080."
 echo "If you saw errors, check the server logs and the script output."

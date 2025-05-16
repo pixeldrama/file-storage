@@ -35,6 +35,8 @@ func LoadConfig() (*Config, error) {
 	viper.AutomaticEnv()
 
 	// Set default values
+
+	// Set default values
 	viper.SetDefault("SERVER_PORT", "8080")
 	viper.SetDefault("BLOB_STORAGE_URL", "")
 	viper.SetDefault("CONTAINER_NAME", "files")
@@ -47,7 +49,6 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("DB_USER", "postgres")
 	viper.SetDefault("DB_PASSWORD", "postgres")
 
-	// Read config file if it exists
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			return nil, fmt.Errorf("error reading config file: %w", err)
@@ -68,7 +69,6 @@ func LoadConfig() (*Config, error) {
 		DBPassword:      viper.GetString("DB_PASSWORD"),
 	}
 
-	// Skip storage validation if flag is set
 	if os.Getenv("SKIP_STORAGE_VALIDATION") == "true" {
 		return config, nil
 	}
@@ -78,10 +78,10 @@ func LoadConfig() (*Config, error) {
 		config.BlobAccountName = "devstoreaccount1"
 		config.StorageKey = "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
 	} else {
-		// Try to get storage key from environment first
+
 		storageKey := os.Getenv("STORAGE_KEY")
 		if storageKey == "" {
-			// If not in environment, try to get from Vault
+
 			vaultService, err := secrets.NewVaultService(config.VaultAddress, config.VaultToken)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create vault service: %w", err)

@@ -8,7 +8,6 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-// RunMigrations executes database migrations using the provided connection string and migrations path
 func RunMigrations(connString, migrationsPath string) error {
 	sourceURL := fmt.Sprintf("file://%s", migrationsPath)
 	m, err := migrate.New(sourceURL, connString)

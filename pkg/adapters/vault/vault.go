@@ -26,7 +26,6 @@ func NewVaultClient(address, token string) (*VaultClient, error) {
 	}, nil
 }
 
-// StoreSecret stores a secret in Vault
 func (v *VaultClient) StoreSecret(path string, data map[string]interface{}) error {
 	_, err := v.client.Logical().Write(path, data)
 	if err != nil {
@@ -35,7 +34,6 @@ func (v *VaultClient) StoreSecret(path string, data map[string]interface{}) erro
 	return nil
 }
 
-// GetSecret retrieves a secret from Vault
 func (v *VaultClient) GetSecret(path string) (map[string]interface{}, error) {
 	secret, err := v.client.Logical().Read(path)
 	if err != nil {

@@ -38,7 +38,6 @@ func NewVaultService(address, token string) (*VaultService, error) {
 	}, nil
 }
 
-// StoreStorageCredentials stores storage credentials in Vault
 func (v *VaultService) StoreStorageCredentials(creds StorageCredentials) error {
 	data := map[string]interface{}{
 		"data": map[string]interface{}{
@@ -52,7 +51,6 @@ func (v *VaultService) StoreStorageCredentials(creds StorageCredentials) error {
 	return nil
 }
 
-// GetStorageCredentials retrieves storage credentials from Vault
 func (v *VaultService) GetStorageCredentials() (*StorageCredentials, error) {
 	secret, err := v.client.Logical().Read(StorageCredsPath)
 	if err != nil {
@@ -62,7 +60,6 @@ func (v *VaultService) GetStorageCredentials() (*StorageCredentials, error) {
 		return nil, fmt.Errorf("no storage credentials found in vault at path: %s", StorageCredsPath)
 	}
 
-	// Extract data from the KV v2 secret structure
 	data, ok := secret.Data["data"].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("invalid secret data format")

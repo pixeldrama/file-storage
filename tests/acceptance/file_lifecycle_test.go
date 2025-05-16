@@ -13,15 +13,10 @@ import (
 	"testing"
 	"time"
 
-	// "crypto/rand" // Keep for future tests needing random data
-	// "github.com/google/uuid" // Keep for future tests needing UUIDs
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// Configuration for the API base URL and auth token
-// These should be configurable, e.g., via environment variables for real test runs.
 var (
 	apiBaseURL = getEnv("API_BASE_URL", "http://localhost:8080")
 	authToken  = os.Getenv("API_AUTH_TOKEN")
@@ -57,8 +52,6 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-// --- HTTP Client Helpers ---
-
 func createAPIRequest(t *testing.T, method, url string, body io.Reader) *http.Request {
 	req, err := http.NewRequest(method, url, body)
 	require.NoError(t, err, "Failed to create request")
@@ -71,12 +64,12 @@ func createAPIRequest(t *testing.T, method, url string, body io.Reader) *http.Re
 func executeAPIRequest(t *testing.T, client *http.Client, req *http.Request, expectedStatusCode int) *http.Response {
 	resp, err := client.Do(req)
 	require.NoError(t, err, "Failed to execute request")
-	// Read body for logging even if not used by caller, then restore it
+
 	var respBodyBytes []byte
 	if resp.Body != nil {
 		respBodyBytes, _ = io.ReadAll(resp.Body)
-		resp.Body.Close()                                        // close original body
-		resp.Body = io.NopCloser(bytes.NewBuffer(respBodyBytes)) // restore body
+		resp.Body.Close()
+		resp.Body = io.NopCloser(bytes.NewBuffer(respBodyBytes))
 	}
 
 	require.Equal(t, expectedStatusCode, resp.StatusCode,
@@ -91,13 +84,9 @@ func decodeJSONResponse(t *testing.T, resp *http.Response, target interface{}) {
 	require.NoError(t, err, "Failed to decode JSON response")
 }
 
-// --- API Specific Client Functions ---
-
 func createUploadJobClient(t *testing.T, httpClient *http.Client) UploadJobResponse {
 	url := fmt.Sprintf("%s/api/upload-jobs", apiBaseURL)
-	// The API spec says POST /upload-jobs, but doesn't specify a body for creation.
-	// Assuming it needs an empty body or a body indicating the filename (which is in the response).
-	// For now, sending a minimal JSON with filename, adjust if API needs different.
+
 	payload := strings.NewReader(fmt.Sprintf(`{"filename": "%s"}`, testfileName))
 	req := createAPIRequest(t, http.MethodPost, url, payload)
 	req.Header.Set("Content-Type", "application/json")
@@ -132,7 +121,7 @@ func uploadFileForJobClient(t *testing.T, httpClient *http.Client, jobId string,
 	req := createAPIRequest(t, http.MethodPost, url, body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	resp := executeAPIRequest(t, httpClient, req, http.StatusCreated) // API spec says 201 for successful upload
+	resp := executeAPIRequest(t, httpClient, req, http.StatusCreated)
 
 	var statusResponse UploadJobStatusResponse
 	decodeJSONResponse(t, resp, &statusResponse)
@@ -170,31 +159,24 @@ func deleteFileClient(t *testing.T, httpClient *http.Client, fileId string) {
 	executeAPIRequest(t, httpClient, req, http.StatusNoContent)
 }
 
-// --- Test Cases ---
-
 func TestFileLifecycle_SuccessfulUploadDownloadDelete(t *testing.T) {
-	// Initialize HTTP client for this test
+
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 
-	// Determine project root to correctly locate the test file created by TestMain in main_test.go
-	// The test file (testfileName) is created in the working directory of the test execution by main_test.go
 	wd, err := os.Getwd()
 	require.NoError(t, err, "Failed to get working directory for test case")
-	testFilePath := filepath.Join(wd, testfileName) // testfileName is a const in this file
+	testFilePath := filepath.Join(wd, testfileName)
 
-	// 1. Create an upload job
 	t.Log("Step 1: Creating upload job...")
 	job := createUploadJobClient(t, httpClient)
 	assert.NotEmpty(t, job.JobID, "Job ID should be returned")
 	t.Logf("Upload job created with ID: %s", job.JobID)
 
-	// 2. Upload a test file
 	t.Logf("Step 2: Uploading file '%s' for job ID: %s...", testfileName, job.JobID)
 	initialStatus := uploadFileForJobClient(t, httpClient, job.JobID, testFilePath)
 	assert.Contains(t, []string{"PENDING", "UPLOADING", "VIRUS_CHECKING", "COMPLETED"}, initialStatus.Status, "Initial status after upload")
 	t.Logf("File upload initiated, initial status: %s", initialStatus.Status)
 
-	// 3. Poll the job status until COMPLETED
 	t.Log("Step 3: Polling job status...")
 	var currentStatus UploadJobStatusResponse
 	startTime := time.Now()
@@ -215,12 +197,9 @@ func TestFileLifecycle_SuccessfulUploadDownloadDelete(t *testing.T) {
 	}
 	t.Logf("Job completed. FileID: %s", currentStatus.FileID)
 
-	// 4. Verify the Location header and extract fileId (FileID is directly in status response)
 	fileId := currentStatus.FileID
 	require.NotEmpty(t, fileId, "FileID from completed job status should not be empty")
-	// The OpenAPI spec mentions a Location header on the GET /upload-jobs/{jobId} endpoint
-	// when status is COMPLETED. Let's verify that too.
-	// We need to make the call again to get the headers specifically after completion.
+
 	finalJobStatusReq := createAPIRequest(t, http.MethodGet, fmt.Sprintf("%s/api/upload-jobs/%s", apiBaseURL, job.JobID), nil)
 	finalJobStatusResp := executeAPIRequest(t, httpClient, finalJobStatusReq, http.StatusOK)
 	locationHeader := finalJobStatusResp.Header.Get("Location")
@@ -230,30 +209,28 @@ func TestFileLifecycle_SuccessfulUploadDownloadDelete(t *testing.T) {
 		fmt.Sprintf("Location header '%s' should end with '%s'", locationHeader, expectedLocationSuffix))
 	finalJobStatusResp.Body.Close()
 
-	// 5. Download the file using fileId
 	t.Logf("Step 5: Downloading file with FileID: %s...", fileId)
 	downloadedData, contentDisposition := downloadFileClient(t, httpClient, fileId)
 	assert.NotEmpty(t, downloadedData, "Downloaded data should not be empty")
 	t.Logf("File downloaded successfully (%d bytes). Content-Disposition: %s", len(downloadedData), contentDisposition)
 
-	// 6. Verify the downloaded file matches the uploaded file
 	t.Log("Step 6: Verifying downloaded file content...")
 	assert.Equal(t, testfileContent, string(downloadedData), "Downloaded file content should match original")
-	// Also check Content-Disposition if it's expected to contain the original filename
+
 	assert.Contains(t, contentDisposition, fmt.Sprintf("filename=\"%s\"", testfileName), "Content-Disposition should contain the correct filename")
 	t.Log("File content verified.")
 
-	/* // COMMENTED OUT: Steps 7 & 8 require DeleteFile handler and route
-	// 7. Delete the file
-	t.Logf("Step 7: Deleting file with FileID: %s...", fileId)
-	deleteFileClient(t, httpClient, fileId)
-	t.Log("File deleted successfully.")
+	/*
 
-	// 8. Attempt to download the deleted file and expect a 404
-	t.Log("Step 8: Attempting to download deleted file (expecting 404)...")
-	url := fmt.Sprintf("%s/api/files/%s", apiBaseURL, fileId)
-	req := createAPIRequest(t, http.MethodGet, url, nil)
-	_ = executeAPIRequest(t, httpClient, req, http.StatusNotFound) // Expect 404
-	t.Log("Download attempt for deleted file correctly resulted in 404.")
+		t.Logf("Step 7: Deleting file with FileID: %s...", fileId)
+		deleteFileClient(t, httpClient, fileId)
+		t.Log("File deleted successfully.")
+
+
+		t.Log("Step 8: Attempting to download deleted file (expecting 404)...")
+		url := fmt.Sprintf("%s/api/files/%s", apiBaseURL, fileId)
+		req := createAPIRequest(t, http.MethodGet, url, nil)
+		_ = executeAPIRequest(t, httpClient, req, http.StatusNotFound)
+		t.Log("Download attempt for deleted file correctly resulted in 404.")
 	*/
 }

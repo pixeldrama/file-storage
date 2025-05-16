@@ -59,5 +59,5 @@ func (r *InMemoryRepository) GetByFileID(ctx context.Context, fileID string) (*d
 			return job, nil
 		}
 	}
-	return nil, nil // Or an error indicating not found
+	return nil, nil
 }

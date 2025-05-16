@@ -39,22 +39,15 @@ func main() {
 		var azureStorageErr error
 		accountNameForCreds := cfg.BlobAccountName
 		if accountNameForCreds == "" {
-			// This is a fallback for non-Azurite setups.
-			// For real Azure, ensure BlobAccountName is configured or use a robust way to get it from BlobStorageURL.
-			// The azblob.NewSharedKeyCredential expects the account name, not the full URL.
-			// For Azurite, BlobAccountName is explicitly "devstoreaccount1".
-			// If you are using a real Azure Storage account, you should set BlobAccountName in your config.
+
 			log.Println("Warning: BlobAccountName is not set. This is fine for Azurite if BlobStorageURL is the Azurite URL. For real Azure, ensure BlobAccountName is configured.")
-			// As a simple fallback, we assume the BlobStorageURL might be the account name if it's not a full URL.
-			// This part might need adjustment based on your actual Azure Storage URL structures.
-			// A more robust solution extracts the account name from the full blob URL.
-			// For now, we will pass BlobStorageURL, but this is likely incorrect for NewSharedKeyCredential with real Azure Storage URLs.
-			accountNameForCreds = cfg.BlobStorageURL // This line is problematic for real Azure URLs but okay if BlobAccountName will be set.
+
+			accountNameForCreds = cfg.BlobStorageURL
 		}
 
 		fileStorage, azureStorageErr = storage.NewAzureBlobStorage(
-			accountNameForCreds, // Account name for SharedKeyCredential
-			cfg.BlobStorageURL,  // Full service URL for the client
+			accountNameForCreds,
+			cfg.BlobStorageURL,
 			cfg.StorageKey,
 			cfg.ContainerName,
 			metricsCollector,
