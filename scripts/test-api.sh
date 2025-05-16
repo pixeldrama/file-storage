@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BASE_URL="http://localhost:8080/api"
+BASE_URL="http://localhost:8080"
 TEST_FILE="test.txt" # Create a dummy file for testing uploads
 DOWNLOADED_FILE_PREFIX="downloaded_test_file"
 

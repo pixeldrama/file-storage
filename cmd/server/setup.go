@@ -17,14 +17,10 @@ func SetupRouter(
 
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	api := r.Group("/api")
-	{
-		api.POST("/upload-jobs", handlers.CreateUploadJob)
-		api.GET("/upload-jobs/:jobId", handlers.GetUploadJobStatus)
-		api.POST("/upload-jobs/:jobId", handlers.UploadFile)
-		api.GET("/files/:fileId", handlers.DownloadFile)
-
-	}
+	r.POST("/upload-jobs", handlers.CreateUploadJob)
+	r.GET("/upload-jobs/:jobId", handlers.GetUploadJobStatus)
+	r.POST("/upload-jobs/:jobId", handlers.UploadFile)
+	r.GET("/files/:fileId", handlers.DownloadFile)
 
 	return r
 }

@@ -85,7 +85,7 @@ func decodeJSONResponse(t *testing.T, resp *http.Response, target interface{}) {
 }
 
 func createUploadJobClient(t *testing.T, httpClient *http.Client) UploadJobResponse {
-	url := fmt.Sprintf("%s/api/upload-jobs", apiBaseURL)
+	url := fmt.Sprintf("%s/upload-jobs", apiBaseURL)
 
 	payload := strings.NewReader(fmt.Sprintf(`{"filename": "%s"}`, testfileName))
 	req := createAPIRequest(t, http.MethodPost, url, payload)
@@ -100,7 +100,7 @@ func createUploadJobClient(t *testing.T, httpClient *http.Client) UploadJobRespo
 }
 
 func uploadFileForJobClient(t *testing.T, httpClient *http.Client, jobId string, filePath string) UploadJobStatusResponse {
-	url := fmt.Sprintf("%s/api/upload-jobs/%s", apiBaseURL, jobId)
+	url := fmt.Sprintf("%s/upload-jobs/%s", apiBaseURL, jobId)
 
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
@@ -129,7 +129,7 @@ func uploadFileForJobClient(t *testing.T, httpClient *http.Client, jobId string,
 }
 
 func getJobStatusClient(t *testing.T, httpClient *http.Client, jobId string) UploadJobStatusResponse {
-	url := fmt.Sprintf("%s/api/upload-jobs/%s", apiBaseURL, jobId)
+	url := fmt.Sprintf("%s/upload-jobs/%s", apiBaseURL, jobId)
 	req := createAPIRequest(t, http.MethodGet, url, nil)
 
 	resp := executeAPIRequest(t, httpClient, req, http.StatusOK)
@@ -140,7 +140,7 @@ func getJobStatusClient(t *testing.T, httpClient *http.Client, jobId string) Upl
 }
 
 func downloadFileClient(t *testing.T, httpClient *http.Client, fileId string) ([]byte, string) {
-	url := fmt.Sprintf("%s/api/files/%s", apiBaseURL, fileId)
+	url := fmt.Sprintf("%s/files/%s", apiBaseURL, fileId)
 	req := createAPIRequest(t, http.MethodGet, url, nil)
 
 	resp := executeAPIRequest(t, httpClient, req, http.StatusOK)
@@ -154,7 +154,7 @@ func downloadFileClient(t *testing.T, httpClient *http.Client, fileId string) ([
 }
 
 func deleteFileClient(t *testing.T, httpClient *http.Client, fileId string) {
-	url := fmt.Sprintf("%s/api/files/%s", apiBaseURL, fileId)
+	url := fmt.Sprintf("%s/files/%s", apiBaseURL, fileId)
 	req := createAPIRequest(t, http.MethodDelete, url, nil)
 	executeAPIRequest(t, httpClient, req, http.StatusNoContent)
 }
@@ -200,11 +200,11 @@ func TestFileLifecycle_SuccessfulUploadDownloadDelete(t *testing.T) {
 	fileId := currentStatus.FileID
 	require.NotEmpty(t, fileId, "FileID from completed job status should not be empty")
 
-	finalJobStatusReq := createAPIRequest(t, http.MethodGet, fmt.Sprintf("%s/api/upload-jobs/%s", apiBaseURL, job.JobID), nil)
+	finalJobStatusReq := createAPIRequest(t, http.MethodGet, fmt.Sprintf("%s/upload-jobs/%s", apiBaseURL, job.JobID), nil)
 	finalJobStatusResp := executeAPIRequest(t, httpClient, finalJobStatusReq, http.StatusOK)
 	locationHeader := finalJobStatusResp.Header.Get("Location")
 	assert.NotEmpty(t, locationHeader, "Location header should be present for completed job")
-	expectedLocationSuffix := fmt.Sprintf("/api/files/%s", fileId)
+	expectedLocationSuffix := fmt.Sprintf("/files/%s", fileId)
 	assert.True(t, strings.HasSuffix(locationHeader, expectedLocationSuffix),
 		fmt.Sprintf("Location header '%s' should end with '%s'", locationHeader, expectedLocationSuffix))
 	finalJobStatusResp.Body.Close()
@@ -228,7 +228,7 @@ func TestFileLifecycle_SuccessfulUploadDownloadDelete(t *testing.T) {
 
 
 		t.Log("Step 8: Attempting to download deleted file (expecting 404)...")
-		url := fmt.Sprintf("%s/api/files/%s", apiBaseURL, fileId)
+		url := fmt.Sprintf("%s/files/%s", apiBaseURL, fileId)
 		req := createAPIRequest(t, http.MethodGet, url, nil)
 		_ = executeAPIRequest(t, httpClient, req, http.StatusNotFound)
 		t.Log("Download attempt for deleted file correctly resulted in 404.")
