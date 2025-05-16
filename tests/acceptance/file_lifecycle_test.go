@@ -220,17 +220,13 @@ func TestFileLifecycle_SuccessfulUploadDownloadDelete(t *testing.T) {
 	assert.Contains(t, contentDisposition, fmt.Sprintf("filename=\"%s\"", testfileName), "Content-Disposition should contain the correct filename")
 	t.Log("File content verified.")
 
-	/*
+	t.Logf("Step 7: Deleting file with FileID: %s...", fileId)
+	deleteFileClient(t, httpClient, fileId)
+	t.Log("File deleted successfully.")
 
-		t.Logf("Step 7: Deleting file with FileID: %s...", fileId)
-		deleteFileClient(t, httpClient, fileId)
-		t.Log("File deleted successfully.")
-
-
-		t.Log("Step 8: Attempting to download deleted file (expecting 404)...")
-		url := fmt.Sprintf("%s/files/%s", apiBaseURL, fileId)
-		req := createAPIRequest(t, http.MethodGet, url, nil)
-		_ = executeAPIRequest(t, httpClient, req, http.StatusNotFound)
-		t.Log("Download attempt for deleted file correctly resulted in 404.")
-	*/
+	t.Log("Step 8: Attempting to download deleted file (expecting 404)...")
+	url := fmt.Sprintf("%s/files/%s", apiBaseURL, fileId)
+	req := createAPIRequest(t, http.MethodGet, url, nil)
+	_ = executeAPIRequest(t, httpClient, req, http.StatusNotFound)
+	t.Log("Download attempt for deleted file correctly resulted in 404.")
 }

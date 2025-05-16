@@ -52,34 +52,51 @@ echo "Response: $UPLOAD_RESPONSE"
 FILE_ID=$(echo "$UPLOAD_RESPONSE" | jq -r '.fileId')
 
 if [ -z "$FILE_ID" ] || [ "$FILE_ID" == "null" ]; then
-    echo "Error: Could not extract fileId from upload response. Job status might not be 'COMPLETED' yet or an error occurred."
-    echo "Full upload response: $UPLOAD_RESPONSE"
-    # Depending on the desired behavior, you might want to poll here or exit.
-    # For now, we'll try to proceed, but download will likely fail.
-    # exit 1 # Uncomment to make it a hard stop
+    echo "Error: Could not extract fileId from upload response."
+    exit 1
 fi
+echo "Extracted FILE_ID: $FILE_ID"
 
-if [ -n "$FILE_ID" ] && [ "$FILE_ID" != "null" ]; then
-    echo "Extracted FILE_ID: $FILE_ID"
+# 4. Download File
+echo -e "\n\n--- 4. Download File ---"
+echo "GET $BASE_URL/files/$FILE_ID"
+DOWNLOADED_FILE="${DOWNLOADED_FILE_PREFIX}_${FILE_ID}"
+curl -s -o "$DOWNLOADED_FILE" "$BASE_URL/files/$FILE_ID"
+echo "File downloaded to: $DOWNLOADED_FILE"
 
-    # 4. Download File (only if FILE_ID was extracted)
-    echo -e "\n\n--- 4. Download File ---"
-    DOWNLOADED_FILE_NAME="${DOWNLOADED_FILE_PREFIX}_${FILE_ID}.txt"
-    echo "GET $BASE_URL/files/$FILE_ID -o $DOWNLOADED_FILE_NAME"
-    curl -L -v --max-time 30 -X GET "$BASE_URL/files/$FILE_ID" -o "$DOWNLOADED_FILE_NAME"
-    
-    if [ -f "$DOWNLOADED_FILE_NAME" ]; then
-        echo -e "\nFile downloaded as $DOWNLOADED_FILE_NAME"
-        echo "Content of downloaded file:"
-        cat "$DOWNLOADED_FILE_NAME"
-        echo
-    else
-        echo -e "\nError: Downloaded file $DOWNLOADED_FILE_NAME not found."
-    fi
+# Compare original and downloaded files
+if cmp -s "$TEST_FILE" "$DOWNLOADED_FILE"; then
+    echo "Files are identical - download successful!"
 else
-    echo -e "\nSkipping file download because FILE_ID was not extracted."
+    echo "Error: Downloaded file differs from original!"
+    exit 1
 fi
 
+# 5. Delete File
+echo -e "\n\n--- 5. Delete File ---"
+echo "DELETE $BASE_URL/files/$FILE_ID"
+DELETE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$BASE_URL/files/$FILE_ID")
+if [ "$DELETE_STATUS" -eq 204 ]; then
+    echo "File deleted successfully!"
+else
+    echo "Error: Failed to delete file. Status code: $DELETE_STATUS"
+    exit 1
+fi
+
+# 6. Verify Delete
+echo -e "\n\n--- 6. Verify Delete ---"
+echo "GET $BASE_URL/files/$FILE_ID (should fail)"
+VERIFY_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/files/$FILE_ID")
+if [ "$VERIFY_STATUS" -eq 404 ]; then
+    echo "Verification successful - file no longer exists!"
+else
+    echo "Error: File still accessible after deletion. Status code: $VERIFY_STATUS"
+    exit 1
+fi
+
+# Cleanup
+rm -f "$TEST_FILE" "$DOWNLOADED_FILE"
+echo -e "\n\nAll tests completed successfully!"
 
 echo -e "\n\n### Testing Complete ###"
 echo "Ensure your server is running on http://localhost:8080."

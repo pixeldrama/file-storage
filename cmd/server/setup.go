@@ -21,6 +21,7 @@ func SetupRouter(
 	r.GET("/upload-jobs/:jobId", handlers.GetUploadJobStatus)
 	r.POST("/upload-jobs/:jobId", handlers.UploadFile)
 	r.GET("/files/:fileId", handlers.DownloadFile)
+	r.DELETE("/files/:fileId", handlers.DeleteFile)
 
 	return r
 }

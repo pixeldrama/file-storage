@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/benjamin/file-storage-go/pkg/domain"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -67,7 +68,7 @@ func (h *Handlers) GetUploadJobStatus(c *gin.Context) {
 	}
 
 	if job.Status == "COMPLETED" && job.FileID != "" {
-		c.Header("Location", fmt.Sprintf("/api/files/%s", job.FileID))
+		c.Header("Location", fmt.Sprintf("/files/%s", job.FileID))
 	}
 
 	c.JSON(http.StatusOK, job)
@@ -133,19 +134,13 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 func (h *Handlers) DownloadFile(c *gin.Context) {
 	fileID := c.Param("fileId")
 
-	// Retrieve job to get the original filename
 	job, err := h.jobRepo.GetByFileID(c.Request.Context(), fileID)
 	if err != nil {
-		// This typically means a repository-level error, not just "job not found"
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve job details: " + err.Error()})
 		return
 	}
-	// If job is nil, it means no job is associated with this fileID, which could be an issue
-	// or the file was not uploaded via the job system (if that's possible).
-	// For this flow, we assume a job must exist.
+
 	if job == nil {
-		// Log this as it might be an unexpected state. For the client, it's still a file not found.
-		// Consider if a different error code is more appropriate if a job *should* always exist.
 		c.JSON(http.StatusNotFound, gin.H{"error": "File metadata not found"})
 		return
 	}
@@ -158,20 +153,45 @@ func (h *Handlers) DownloadFile(c *gin.Context) {
 	defer reader.Close()
 
 	filename := job.Filename
-	if filename == "" { // Fallback if filename wasn't stored, though it should be
+	if filename == "" {
 		filename = fileID
 	}
 
 	c.Header("Content-Description", "File Transfer")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	c.Header("Content-Type", "application/octet-stream")
-	
-	// Instead of using c.Stream which uses chunked encoding, copy the file directly to the response
+
 	c.Writer.WriteHeader(http.StatusOK)
 	_, err = io.Copy(c.Writer, reader)
 	if err != nil {
-		// Log error but can't really respond with an error status at this point
-		// since headers have already been sent
 		fmt.Printf("Error copying file to response: %v\n", err)
 	}
+}
+
+func (h *Handlers) DeleteFile(c *gin.Context) {
+	fileID := c.Param("fileId")
+
+	job, err := h.jobRepo.GetByFileID(c.Request.Context(), fileID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve job details: " + err.Error()})
+		return
+	}
+
+	// If the job doesn't exist, we still try to delete the file
+	if job != nil {
+		job.Status = "DELETED"
+		job.UpdatedAt = time.Now()
+		if err := h.jobRepo.Update(c.Request.Context(), job); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update job status: " + err.Error()})
+			return
+		}
+	}
+
+	err = h.fileStorage.Delete(c.Request.Context(), fileID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete file: " + err.Error()})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

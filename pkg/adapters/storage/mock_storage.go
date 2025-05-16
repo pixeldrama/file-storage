@@ -50,9 +50,6 @@ func (ms *MockStorage) Delete(ctx context.Context, fileID string) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
-	if _, ok := ms.files[fileID]; !ok {
-		return fmt.Errorf("mockstorage: file with ID '%s' not found for delete", fileID)
-	}
 	delete(ms.files, fileID)
 	return nil
 }
