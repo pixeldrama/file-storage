@@ -13,11 +13,9 @@ import (
 	"time"
 
 	"github.com/benjamin/file-storage-go/cmd/server"
-	"github.com/benjamin/file-storage-go/pkg/adapters/metrics"
 	"github.com/benjamin/file-storage-go/pkg/adapters/repository"
 	"github.com/benjamin/file-storage-go/pkg/adapters/storage"
 	"github.com/benjamin/file-storage-go/pkg/config"
-	"github.com/benjamin/file-storage-go/pkg/domain"
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,22 +24,11 @@ var (
 )
 
 func TestMain(m *testing.M) {
-
 	gin.SetMode(gin.TestMode)
 
-	cfg, configErr := config.LoadConfig()
-
-	useMockStorage := false
-	if os.Getenv("USE_MOCK_STORAGE") == "true" {
-		useMockStorage = true
-		fmt.Println("INFO: USE_MOCK_STORAGE environment variable is set to true. Using MockStorage.")
-	} else if configErr != nil {
-		useMockStorage = true
-		fmt.Printf("INFO: Failed to load full config (%v). Defaulting to MockStorage.\n", configErr)
-
-		if cfg == nil {
-			cfg = &config.Config{}
-		}
+	cfg, _ := config.LoadConfig()
+	if cfg == nil {
+		cfg = &config.Config{}
 	}
 
 	var explicitPort string
@@ -54,31 +41,7 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	metricsCollector := metrics.NewPrometheusMetrics()
-
-	var fileStorageService domain.FileStorage
-	if useMockStorage {
-		fmt.Println("INFO: Initializing MockStorage.")
-		fileStorageService = storage.NewMockStorage()
-	} else {
-		fmt.Println("INFO: Initializing AzureBlobStorage. Ensure Azure environment variables are set.")
-		var err error
-		if cfg.BlobStorageURL == "" {
-			log.Fatalf("AzureBlobStorage requires BLOB_STORAGE_URL. It's missing and not using mock.")
-		}
-		fileStorageService, err = storage.NewAzureBlobStorage(
-			cfg.BlobAccountName,
-			cfg.BlobStorageURL,
-			cfg.StorageKey,
-			cfg.ContainerName,
-			metricsCollector,
-		)
-
-		if err != nil {
-			log.Fatalf("Failed to initialize AzureBlobStorage: %v. If you intended to use mock storage, set USE_MOCK_STORAGE=true or ensure Azure config env vars are missing.", err)
-		}
-	}
-
+	fileStorageService := storage.NewMockStorage()
 	jobRepo := repository.NewInMemoryRepository()
 
 	r := server.SetupRouter(fileStorageService, jobRepo)
