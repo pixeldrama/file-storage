@@ -5,6 +5,7 @@ import (
 
 	handlers "github.com/benjamin/file-storage-go/pkg/adapters/http"
 	"github.com/benjamin/file-storage-go/pkg/domain"
+	"github.com/benjamin/file-storage-go/pkg/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -22,6 +23,9 @@ func SetupRouter(
 	})
 
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	// Apply auth middleware to all routes except health and metrics
+	r.Use(middleware.AuthMiddleware())
 
 	r.POST("/upload-jobs", h.CreateUploadJob)
 	r.GET("/upload-jobs/:jobId", h.GetUploadJobStatus)
