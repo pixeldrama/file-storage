@@ -9,11 +9,11 @@ import (
 )
 
 type Config struct {
-	ServerPort      string
-	BlobStorageURL  string
-	BlobAccountName string
-	ContainerName   string
-	StorageKey      string
+	ServerPort      string `mapstructure:"SERVER_PORT"`
+	BlobStorageURL  string `mapstructure:"BLOB_STORAGE_URL"`
+	BlobAccountName string `mapstructure:"BLOB_ACCOUNT_NAME"`
+	ContainerName   string `mapstructure:"CONTAINER_NAME"`
+	StorageKey      string `mapstructure:"STORAGE_KEY"`
 	VaultAddress    string `mapstructure:"VAULT_ADDRESS"`
 	VaultToken      string `mapstructure:"VAULT_TOKEN"`
 	DBHost          string `mapstructure:"DB_HOST"`
