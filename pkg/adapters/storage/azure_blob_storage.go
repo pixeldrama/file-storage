@@ -34,9 +34,13 @@ func NewAzureBlobStorage(accountName, serviceURL, accountKey, containerName stri
 	}, nil
 }
 
+func (s *AzureBlobStorage) getBlobName(fileID string) string {
+	return fileID
+}
+
 func (s *AzureBlobStorage) Upload(ctx context.Context, fileID string, reader io.Reader) error {
 	start := time.Now()
-	blobName := fmt.Sprintf("%s", fileID)
+	blobName := s.getBlobName(fileID)
 
 	_, err := s.client.UploadStream(ctx, s.containerName, blobName, reader, nil)
 	if err != nil {
@@ -49,7 +53,7 @@ func (s *AzureBlobStorage) Upload(ctx context.Context, fileID string, reader io.
 }
 
 func (s *AzureBlobStorage) Download(ctx context.Context, fileID string) (io.ReadCloser, error) {
-	blobName := fmt.Sprintf("%s", fileID)
+	blobName := s.getBlobName(fileID)
 
 	downloadResponse, err := s.client.DownloadStream(ctx, s.containerName, blobName, nil)
 	if err != nil {
@@ -60,7 +64,7 @@ func (s *AzureBlobStorage) Download(ctx context.Context, fileID string) (io.Read
 }
 
 func (s *AzureBlobStorage) Delete(ctx context.Context, fileID string) error {
-	blobName := fmt.Sprintf("%s", fileID)
+	blobName := s.getBlobName(fileID)
 
 	_, err := s.client.DeleteBlob(ctx, s.containerName, blobName, nil)
 	if err != nil {
