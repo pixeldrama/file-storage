@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/benjamin/file-storage-go/pkg/services/secrets"
@@ -72,15 +73,18 @@ func LoadConfig() (*Config, error) {
 
 	storageKey := os.Getenv("STORAGE_KEY")
 	if storageKey == "" {
+		log.Printf("Creating vault service with address: %s", config.VaultAddress)
 		vaultService, err := secrets.NewVaultService(config.VaultAddress, config.VaultToken)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create vault service: %w", err)
 		}
 
+		log.Printf("Retrieving storage credentials from vault")
 		creds, err := vaultService.GetStorageCredentials()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get storage credentials from vault: %w", err)
 		}
+		log.Printf("Successfully retrieved storage credentials from vault")
 
 		config.StorageKey = creds.StorageKey
 		if config.BlobAccountName == "" {

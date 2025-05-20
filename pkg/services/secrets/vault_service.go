@@ -65,18 +65,13 @@ func (v *VaultService) GetStorageCredentials() (*StorageCredentials, error) {
 		return nil, fmt.Errorf("invalid secret data format")
 	}
 
-	credsData, ok := data["credentials"].(map[string]interface{})
+	credsData, ok := data["credentials"].(string)
 	if !ok {
 		return nil, fmt.Errorf("invalid credentials format in vault")
 	}
 
-	credsBytes, err := json.Marshal(credsData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal credentials: %w", err)
-	}
-
 	var creds StorageCredentials
-	if err := json.Unmarshal(credsBytes, &creds); err != nil {
+	if err := json.Unmarshal([]byte(credsData), &creds); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal credentials: %w", err)
 	}
 
