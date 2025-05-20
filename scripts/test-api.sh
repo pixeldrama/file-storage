@@ -3,6 +3,7 @@
 BASE_URL="http://localhost:8080"
 TEST_FILE="test.txt" # Create a dummy file for testing uploads
 DOWNLOADED_FILE_PREFIX="downloaded_test_file"
+JWT_TOKEN="your_jwt_token_here" # Replace this with your actual JWT token
 
 # Check if jq is installed
 if ! command -v jq &> /dev/null
@@ -24,7 +25,7 @@ echo "### Testing API Endpoints ###"
 # 1. Create Upload Job
 echo -e "\n\n--- 1. Create Upload Job ---"
 echo "POST $BASE_URL/upload-jobs"
-CREATE_JOB_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d '{"fileName": "mytestfile.txt"}' "$BASE_URL/upload-jobs")
+CREATE_JOB_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_TOKEN" -d '{"fileName": "mytestfile.txt"}' "$BASE_URL/upload-jobs")
 echo "Response: $CREATE_JOB_RESPONSE"
 
 JOB_ID=$(echo "$CREATE_JOB_RESPONSE" | jq -r '.jobId')
@@ -39,14 +40,14 @@ echo "Extracted JOB_ID: $JOB_ID"
 # 2. Get Upload Job Status
 echo -e "\n\n--- 2. Get Upload Job Status ---"
 echo "GET $BASE_URL/upload-jobs/$JOB_ID"
-curl -X GET "$BASE_URL/upload-jobs/$JOB_ID"
+curl -X GET -H "Authorization: Bearer $JWT_TOKEN" "$BASE_URL/upload-jobs/$JOB_ID"
 echo # Newline for better formatting
 
 
 # 3. Upload File
 echo -e "\n\n--- 3. Upload File ---"
 echo "POST $BASE_URL/upload-jobs/$JOB_ID"
-UPLOAD_RESPONSE=$(curl -s -X POST -F "file=@$TEST_FILE" "$BASE_URL/upload-jobs/$JOB_ID")
+UPLOAD_RESPONSE=$(curl -s -X POST -H "Authorization: Bearer $JWT_TOKEN" -F "file=@$TEST_FILE" "$BASE_URL/upload-jobs/$JOB_ID")
 echo "Response: $UPLOAD_RESPONSE"
 
 FILE_ID=$(echo "$UPLOAD_RESPONSE" | jq -r '.fileId')
@@ -61,7 +62,7 @@ echo "Extracted FILE_ID: $FILE_ID"
 echo -e "\n\n--- 4. Download File ---"
 echo "GET $BASE_URL/files/$FILE_ID"
 DOWNLOADED_FILE="${DOWNLOADED_FILE_PREFIX}_${FILE_ID}"
-curl -s -o "$DOWNLOADED_FILE" "$BASE_URL/files/$FILE_ID"
+curl -s -H "Authorization: Bearer $JWT_TOKEN" -o "$DOWNLOADED_FILE" "$BASE_URL/files/$FILE_ID"
 echo "File downloaded to: $DOWNLOADED_FILE"
 
 # Compare original and downloaded files
@@ -75,7 +76,7 @@ fi
 # 5. Delete File
 echo -e "\n\n--- 5. Delete File ---"
 echo "DELETE $BASE_URL/files/$FILE_ID"
-DELETE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$BASE_URL/files/$FILE_ID")
+DELETE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $JWT_TOKEN" -X DELETE "$BASE_URL/files/$FILE_ID")
 if [ "$DELETE_STATUS" -eq 204 ]; then
     echo "File deleted successfully!"
 else
@@ -86,7 +87,7 @@ fi
 # 6. Verify Delete
 echo -e "\n\n--- 6. Verify Delete ---"
 echo "GET $BASE_URL/files/$FILE_ID (should fail)"
-VERIFY_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/files/$FILE_ID")
+VERIFY_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $JWT_TOKEN" "$BASE_URL/files/$FILE_ID")
 if [ "$VERIFY_STATUS" -eq 404 ]; then
     echo "Verification successful - file no longer exists!"
 else
