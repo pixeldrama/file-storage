@@ -28,7 +28,7 @@ test-api:
 
 local:
 	@echo "Starting Go application with Azurite..."
-	USE_AZURITE=true go run main.go
+	go run main.go
 
 setup-azure:
 	@echo "Ensuring Azure CLI container is running..."
