@@ -9,6 +9,31 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+const (
+	createJobQuery = `
+		INSERT INTO upload_jobs (id, filename, status, created_at, updated_at, file_id, error)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`
+
+	getJobQuery = `
+		SELECT id, filename, status, created_at, updated_at, file_id, error
+		FROM upload_jobs
+		WHERE id = $1
+	`
+
+	updateJobQuery = `
+		UPDATE upload_jobs
+		SET filename = $1, status = $2, updated_at = $3, file_id = $4, error = $5
+		WHERE id = $6
+	`
+
+	getJobByFileIDQuery = `
+		SELECT id, filename, status, created_at, updated_at, file_id, error
+		FROM upload_jobs
+		WHERE file_id = $1
+	`
+)
+
 type PostgresRepository struct {
 	pool *pgxpool.Pool
 }
@@ -34,11 +59,7 @@ func NewPostgresRepository(connStr string) (*PostgresRepository, error) {
 }
 
 func (r *PostgresRepository) Create(ctx context.Context, job *domain.UploadJob) error {
-	query := `
-		INSERT INTO upload_jobs (id, filename, status, created_at, updated_at, file_id, error)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`
-	_, err := r.pool.Exec(ctx, query,
+	_, err := r.pool.Exec(ctx, createJobQuery,
 		job.ID,
 		job.Filename,
 		job.Status,
@@ -54,13 +75,8 @@ func (r *PostgresRepository) Create(ctx context.Context, job *domain.UploadJob) 
 }
 
 func (r *PostgresRepository) Get(ctx context.Context, jobID string) (*domain.UploadJob, error) {
-	query := `
-		SELECT id, filename, status, created_at, updated_at, file_id, error
-		FROM upload_jobs
-		WHERE id = $1
-	`
 	job := &domain.UploadJob{}
-	err := r.pool.QueryRow(ctx, query, jobID).Scan(
+	err := r.pool.QueryRow(ctx, getJobQuery, jobID).Scan(
 		&job.ID,
 		&job.Filename,
 		&job.Status,
@@ -79,12 +95,7 @@ func (r *PostgresRepository) Get(ctx context.Context, jobID string) (*domain.Upl
 }
 
 func (r *PostgresRepository) Update(ctx context.Context, job *domain.UploadJob) error {
-	query := `
-		UPDATE upload_jobs
-		SET filename = $1, status = $2, updated_at = $3, file_id = $4, error = $5
-		WHERE id = $6
-	`
-	result, err := r.pool.Exec(ctx, query,
+	result, err := r.pool.Exec(ctx, updateJobQuery,
 		job.Filename,
 		job.Status,
 		job.UpdatedAt,
@@ -104,13 +115,8 @@ func (r *PostgresRepository) Update(ctx context.Context, job *domain.UploadJob) 
 }
 
 func (r *PostgresRepository) GetByFileID(ctx context.Context, fileID string) (*domain.UploadJob, error) {
-	query := `
-		SELECT id, filename, status, created_at, updated_at, file_id, error
-		FROM upload_jobs
-		WHERE file_id = $1
-	`
 	job := &domain.UploadJob{}
-	err := r.pool.QueryRow(ctx, query, fileID).Scan(
+	err := r.pool.QueryRow(ctx, getJobByFileIDQuery, fileID).Scan(
 		&job.ID,
 		&job.Filename,
 		&job.Status,

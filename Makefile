@@ -26,10 +26,6 @@ test-api:
 	@echo "Executing API tests..."
 	./scripts/test-api.sh
 
-local:
-	@echo "Starting Go application with Azurite..."
-	go run main.go
-
 setup-azure:
 	@echo "Ensuring Azure CLI container is running..."
 	docker-compose up -d azure-cli
