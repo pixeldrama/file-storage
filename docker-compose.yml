@@ -20,7 +20,7 @@ services:
     command: sleep infinity
 
   vault:
-    image: hashicorp/vault:1.15
+    image: hashicorp/vault:1.16.0
     container_name: vault
     ports:
       - "8200:8200"
