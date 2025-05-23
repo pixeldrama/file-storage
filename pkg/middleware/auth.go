@@ -2,12 +2,16 @@ package middleware
 
 import (
 	"net/http"
-	"strings"
 
+	"github.com/benjamin/file-storage-go/pkg/auth"
 	"github.com/gin-gonic/gin"
 )
 
-func AuthMiddleware() gin.HandlerFunc {
+type AuthMiddlewareConfig struct {
+	JWTVerifier *auth.JWTVerifier
+}
+
+func NewAuthMiddleware(config AuthMiddlewareConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.URL.Path == "/health" || c.Request.URL.Path == "/metrics" {
 			c.Next()
@@ -20,12 +24,20 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" || parts[1] == "" {
+		tokenString, err := config.JWTVerifier.ExtractTokenFromHeader(authHeader)
+		if err != nil {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
+		token, err := config.JWTVerifier.VerifyToken(tokenString)
+		if err != nil {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
+		// Store the token claims in the context for later use
+		c.Set("token", token)
 		c.Next()
 	}
 }

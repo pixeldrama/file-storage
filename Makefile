@@ -1,4 +1,4 @@
-.PHONY: help start docker-compose test-api local setup-azure setup-azurite setup setup-vault vault-init setup-db migrate
+.PHONY: help start docker-compose test-api local setup-azure setup-azurite setup setup-vault vault-init setup-db migrate setup-keycloak
 
 help:
 	@echo "Available commands:"
@@ -13,6 +13,7 @@ help:
 	@echo "  make setup          - Runs all setup targets (azure, azurite, vault, db)"
 	@echo "  make setup-db       - Ensures PostgreSQL is running"
 	@echo "  make migrate        - Runs database migrations"
+	@echo "  make setup-keycloak - Sets up Keycloak realm and client"
 
 start:
 	@echo "Starting Go application..."
@@ -63,5 +64,16 @@ migrate:
 	@echo "Running database migrations..."
 	go run cmd/migrate/main.go
 
-setup: setup-azure setup-azurite setup-vault vault-init setup-db migrate
+setup-keycloak:
+	@echo "Ensuring Keycloak is running..."
+	docker-compose up -d keycloak
+	@echo "Waiting for Keycloak to be ready..."
+	@until curl -fs "http://localhost:8081/health/ready" > /dev/null 2>&1; do \
+		echo "Waiting for Keycloak to become available..."; \
+		sleep 1; \
+	done
+	@echo "Setting up Keycloak realm and client..."
+	./scripts/setup-keycloak.sh
+
+setup: setup-azure setup-azurite setup-vault vault-init setup-db setup-keycloak migrate
 	@echo "Setup complete!" 

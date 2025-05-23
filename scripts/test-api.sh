@@ -1,11 +1,32 @@
 #!/bin/bash
 
 BASE_URL="http://localhost:8080"
-TEST_FILE="test.txt" # Create a dummy file for testing uploads
+TEST_FILE="test.txt" 
 DOWNLOADED_FILE_PREFIX="downloaded_test_file"
-JWT_TOKEN="your_jwt_token_here" # Replace this with your actual JWT token
 
-# Check if jq is installed
+KEYCLOAK_URL="http://localhost:8081"
+REALM="file-storage"
+CLIENT_ID="file-storage"
+CLIENT_SECRET="test-secret" # This matches the secret in setup-keycloak.sh
+
+get_keycloak_token() {
+    local token_response=$(curl -s -X POST "${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token" \
+        -H "Content-Type: application/x-www-form-urlencoded" \
+        -d "grant_type=client_credentials" \
+        -d "client_id=${CLIENT_ID}" \
+        -d "client_secret=${CLIENT_SECRET}")
+
+    local token=$(echo "$token_response" | jq -r '.access_token')
+    
+    if [ -z "$token" ] || [ "$token" == "null" ]; then
+        echo "Error: Failed to obtain token from Keycloak"
+        echo "Response: $token_response"
+        exit 1
+    fi
+    
+    echo "$token"
+}
+
 if ! command -v jq &> /dev/null
 then
     echo "jq could not be found. Please install jq to run this script."
@@ -14,7 +35,14 @@ then
     exit 1
 fi
 
-# Create a dummy test file if it doesn't exist
+echo "Obtaining JWT token from Keycloak..."
+JWT_TOKEN=$(get_keycloak_token)
+if [ $? -ne 0 ]; then
+    echo "Failed to obtain JWT token. Exiting."
+    exit 1
+fi
+echo "Successfully obtained JWT token"
+
 if [ ! -f "$TEST_FILE" ]; then
     echo "This is a test file for upload." > "$TEST_FILE"
     echo "Created dummy file: $TEST_FILE"
@@ -40,7 +68,7 @@ echo "Extracted JOB_ID: $JOB_ID"
 # 2. Get Upload Job Status
 echo -e "\n\n--- 2. Get Upload Job Status ---"
 echo "GET $BASE_URL/upload-jobs/$JOB_ID"
-curl -X GET -H "Authorization: Bearer $JWT_TOKEN" "$BASE_URL/upload-jobs/$JOB_ID"
+curl -X GET -H "Authorization: Bearer $JWT_TOKEN" "$BASE_URL/upload-jobs/$JOB_ID" > /dev/null
 echo # Newline for better formatting
 
 

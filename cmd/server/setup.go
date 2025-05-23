@@ -4,17 +4,22 @@ import (
 	"net/http"
 
 	handlers "github.com/benjamin/file-storage-go/pkg/adapters/http"
+	"github.com/benjamin/file-storage-go/pkg/auth"
 	"github.com/benjamin/file-storage-go/pkg/domain"
 	"github.com/benjamin/file-storage-go/pkg/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func SetupRouter(
-	fileStorage domain.FileStorage,
-	jobRepo domain.UploadJobRepository,
-) *gin.Engine {
-	h := handlers.NewHandlers(fileStorage, jobRepo)
+type ServerConfig struct {
+	FileStorage      domain.FileStorage
+	JobRepo          domain.UploadJobRepository
+	KeycloakURL      string
+	KeycloakClientID string
+}
+
+func SetupRouter(config ServerConfig) *gin.Engine {
+	h := handlers.NewHandlers(config.FileStorage, config.JobRepo)
 
 	r := gin.Default()
 
@@ -24,8 +29,16 @@ func SetupRouter(
 
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
+	// Initialize JWT verifier
+	jwtVerifier := auth.NewJWTVerifier(auth.KeycloakConfig{
+		RealmURL: config.KeycloakURL,
+		ClientID: config.KeycloakClientID,
+	})
+
 	// Apply auth middleware to all routes except health and metrics
-	r.Use(middleware.AuthMiddleware())
+	r.Use(middleware.NewAuthMiddleware(middleware.AuthMiddlewareConfig{
+		JWTVerifier: jwtVerifier,
+	}))
 
 	r.POST("/upload-jobs", h.CreateUploadJob)
 	r.GET("/upload-jobs/:jobId", h.GetUploadJobStatus)

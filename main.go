@@ -59,7 +59,14 @@ func main() {
 
 	jobRepo := repository.NewInMemoryRepository()
 
-	r := server.SetupRouter(fileStorage, jobRepo)
+	serverConfig := server.ServerConfig{
+		FileStorage:      fileStorage,
+		JobRepo:          jobRepo,
+		KeycloakURL:      "http://localhost:8081/realms/file-storage",
+		KeycloakClientID: "file-storage",
+	}
+
+	r := server.SetupRouter(serverConfig)
 
 	log.Printf("Starting server on port %s", cfg.ServerPort)
 	if err := r.Run(":" + cfg.ServerPort); err != nil {
