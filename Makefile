@@ -75,5 +75,5 @@ setup-keycloak:
 	@echo "Setting up Keycloak realm and client..."
 	./scripts/setup-keycloak.sh
 
-setup: setup-azure setup-azurite setup-vault vault-init setup-db setup-keycloak migrate
+setup: setup-azure setup-azurite setup-vault setup-db setup-keycloak migrate
 	@echo "Setup complete!" 

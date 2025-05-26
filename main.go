@@ -62,8 +62,8 @@ func main() {
 	serverConfig := server.ServerConfig{
 		FileStorage:      fileStorage,
 		JobRepo:          jobRepo,
-		KeycloakURL:      "http://localhost:8081/realms/file-storage",
-		KeycloakClientID: "file-storage",
+		KeycloakURL:      cfg.KeycloakURL,
+		KeycloakClientID: cfg.KeycloakClientID,
 	}
 
 	r := server.SetupRouter(serverConfig)

@@ -1,7 +1,6 @@
 package secrets
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/hashicorp/vault/api"
@@ -65,14 +64,26 @@ func (v *VaultService) GetStorageCredentials() (*StorageCredentials, error) {
 		return nil, fmt.Errorf("invalid secret data format")
 	}
 
-	credsData, ok := data["credentials"].(string)
-	if !ok {
-		return nil, fmt.Errorf("invalid credentials format in vault")
+	creds := StorageCredentials{}
+	if v, ok := data["account_name"].(string); ok {
+		creds.AccountName = v
+	} else {
+		return nil, fmt.Errorf("invalid account_name format")
 	}
-
-	var creds StorageCredentials
-	if err := json.Unmarshal([]byte(credsData), &creds); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal credentials: %w", err)
+	if v, ok := data["storage_key"].(string); ok {
+		creds.StorageKey = v
+	} else {
+		return nil, fmt.Errorf("invalid storage_key format")
+	}
+	if v, ok := data["storage_url"].(string); ok {
+		creds.StorageURL = v
+	} else {
+		return nil, fmt.Errorf("invalid storage_url format")
+	}
+	if v, ok := data["container_name"].(string); ok {
+		creds.ContainerName = v
+	} else {
+		return nil, fmt.Errorf("invalid container_name format")
 	}
 
 	return &creds, nil

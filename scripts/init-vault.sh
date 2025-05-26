@@ -18,21 +18,23 @@ until curl -fs "${VAULT_ADDR}/v1/sys/health" > /dev/null 2>&1; do
     sleep 1
 done
 
-# Enable the KV secrets engine version 2
-echo "Enabling KV secrets engine..."
-docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN=dev-token vault vault secrets enable -path=secret kv-v2 || true
+# Check if KV secrets engine is already enabled
+if ! curl -fs -H "X-Vault-Token: ${VAULT_TOKEN}" "${VAULT_ADDR}/v1/sys/mounts/secret" > /dev/null 2>&1; then
+    echo "Enabling KV secrets engine..."
+    curl -fs -H "X-Vault-Token: ${VAULT_TOKEN}" -X POST "${VAULT_ADDR}/v1/sys/mounts/secret" \
+        -d '{"type": "kv", "options": {"version": "2"}}'
+fi
 
 # Store the storage credentials
 echo "Storing storage credentials in Vault..."
-docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN=dev-token vault vault kv put secret/storage \
-    credentials="$(cat << EOF
-{
-    "account_name": "${AZURE_STORAGE_ACCOUNT}",
-    "storage_key": "${AZURE_STORAGE_KEY}",
-    "storage_url": "${BLOB_STORAGE_URL}",
-    "container_name": "${CONTAINER_NAME}"
-}
-EOF
-)"
+curl -fs -H "X-Vault-Token: ${VAULT_TOKEN}" -X POST "${VAULT_ADDR}/v1/secret/data/storage" \
+    -d "{
+        \"data\": {
+            \"account_name\": \"${AZURE_STORAGE_ACCOUNT}\",
+            \"storage_key\": \"${AZURE_STORAGE_KEY}\",
+            \"storage_url\": \"${BLOB_STORAGE_URL}\",
+            \"container_name\": \"${CONTAINER_NAME}\"
+        }
+    }"
 
 echo "Vault initialization complete!" 

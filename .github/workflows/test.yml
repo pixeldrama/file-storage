@@ -21,15 +21,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: 'go.mod'
-        cache: true
-
-    - name: Install dependencies
-      run: go mod download
-
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
@@ -42,7 +33,4 @@ jobs:
       run: |
         docker-compose up -d
         sleep 10  # Give services time to start
-        make setup
-        go run main.go &
-        timeout 30s bash -c 'until curl -s http://localhost:8080/health; do sleep 1; done'
-        make test-api 
+        ./scripts/test-api.sh 

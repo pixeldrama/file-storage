@@ -1,23 +1,46 @@
-version: '3.8'
-
 services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - BLOB_STORAGE_URL=http://azurite:10000/devstoreaccount1
+      - BLOB_ACCOUNT_NAME=devstoreaccount1
+      - CONTAINER_NAME=files
+      - SERVER_PORT=8080
+      - USE_MOCK_STORAGE=false
+      - KEYCLOAK_URL=http://keycloak:8080/realms/file-storage
+      - KEYCLOAK_CLIENT_ID=file-storage
+      - VAULT_ADDRESS=http://vault:8200
+      - VAULT_TOKEN=dev-token
+    depends_on:
+      keycloak-init:
+        condition: service_completed_successfully
+      vault-init:
+        condition: service_completed_successfully
+      db-init:
+        condition: service_completed_successfully
+      azurite:
+        condition: service_started
+
   azurite:
     image: mcr.microsoft.com/azure-storage/azurite
-    container_name: azurite
+    container_name: files
     ports:
-      - "10000:10000" # Blob service
-      - "10001:10001" # Queue service
-      - "10002:10002" # Table service
+      - "10000:10000"
+      - "10001:10001"
+      - "10002:10002"
     volumes:
       - azurite_data:/data
 
-  azure-cli:
+  azurite-init:
     image: mcr.microsoft.com/azure-cli
-    container_name: azure-cli
-    volumes:
-      - .:/workspace
-    working_dir: /workspace
-    command: sleep infinity
+    depends_on:
+      azurite:
+        condition: service_started
+    command: az storage container create --name files --connection-string 'DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;'
 
   vault:
     image: hashicorp/vault:1.16.0
@@ -31,10 +54,26 @@ services:
       - IPC_LOCK
     command: server -dev
     healthcheck:
-      test: ["CMD", "vault", "status"]
+      test: ["CMD", "sh", "-c", "VAULT_ADDR='http://0.0.0.0:8200' vault status"]
       interval: 10s
       timeout: 5s
       retries: 3
+
+  vault-init:
+    image: curlimages/curl:latest
+    depends_on:
+      vault:
+        condition: service_healthy
+    volumes:
+      - ./scripts:/scripts
+    environment:
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=dev-token
+      - AZURE_STORAGE_ACCOUNT=devstoreaccount1
+      - AZURE_STORAGE_KEY=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==
+      - BLOB_STORAGE_URL=http://azurite:10000/devstoreaccount1
+      - CONTAINER_NAME=files
+    command: ["/bin/sh", "-c", "chmod +x /scripts/init-vault.sh && sh /scripts/init-vault.sh"]
 
   postgres:
     image: postgres:16
@@ -53,6 +92,20 @@ services:
       timeout: 5s
       retries: 3
 
+  db-init:
+    image: migrate/migrate:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=file_storage
+    command: -path=/migrations -database="postgres://postgres:postgres@postgres:5432/file_storage?sslmode=disable" up
+
   keycloak:
     image: quay.io/keycloak/keycloak:24.0.1
     container_name: keycloak
@@ -70,6 +123,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+
+  keycloak-init:
+    image: curlimages/curl:latest
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    volumes:
+      - ./scripts:/scripts
+    environment:
+      - KEYCLOAK_URL=http://keycloak:8080
+    command: ["/bin/sh", "-c", "chmod +x /scripts/setup-keycloak.sh && sh /scripts/setup-keycloak.sh"]
 
 volumes:
   azurite_data:
