@@ -14,7 +14,7 @@ func TestInMemoryRepository_Create(t *testing.T) {
 	job := &domain.UploadJob{
 		ID:        "test-job",
 		Filename:  "test.txt",
-		Status:    "pending",
+		Status:    domain.JobStatusUploading,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -40,7 +40,7 @@ func TestInMemoryRepository_Get(t *testing.T) {
 	job := &domain.UploadJob{
 		ID:        "test-job",
 		Filename:  "test.txt",
-		Status:    "pending",
+		Status:    domain.JobStatusUploading,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -73,7 +73,7 @@ func TestInMemoryRepository_Update(t *testing.T) {
 	job := &domain.UploadJob{
 		ID:        "test-job",
 		Filename:  "test.txt",
-		Status:    "pending",
+		Status:    domain.JobStatusUploading,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -83,7 +83,7 @@ func TestInMemoryRepository_Update(t *testing.T) {
 	updatedJob := &domain.UploadJob{
 		ID:        job.ID,
 		Filename:  job.Filename,
-		Status:    "completed",
+		Status:    domain.JobStatusCompleted,
 		CreatedAt: job.CreatedAt,
 		UpdatedAt: time.Now(),
 	}
@@ -94,7 +94,7 @@ func TestInMemoryRepository_Update(t *testing.T) {
 	}
 
 	stored := repo.jobs[job.ID]
-	if stored.Status != "completed" {
+	if stored.Status != domain.JobStatusCompleted {
 		t.Errorf("Expected status to be 'completed', got %q", stored.Status)
 	}
 
@@ -110,7 +110,7 @@ func TestInMemoryRepository_GetByFileID(t *testing.T) {
 	job := &domain.UploadJob{
 		ID:        "test-job",
 		Filename:  "test.txt",
-		Status:    "completed",
+		Status:    domain.JobStatusCompleted,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		FileID:    "test-file-id",
@@ -147,7 +147,7 @@ func TestInMemoryRepository_ConcurrentOperations(t *testing.T) {
 		for i := 0; i < 100; i++ {
 			job := &domain.UploadJob{
 				ID:        "job1",
-				Status:    "pending",
+				Status:    domain.JobStatusUploading,
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			}

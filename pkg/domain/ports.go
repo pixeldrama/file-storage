@@ -6,6 +6,16 @@ import (
 	"time"
 )
 
+type JobStatus string
+
+const (
+	JobStatusUploading     JobStatus = "UPLOADING"
+	JobStatusVirusChecking JobStatus = "VIRUS_CHECKING"
+	JobStatusCompleted     JobStatus = "COMPLETED"
+	JobStatusFailed        JobStatus = "FAILED"
+	JobStatusDeleted       JobStatus = "DELETED"
+)
+
 type File struct {
 	ID        string
 	Size      int64
@@ -15,7 +25,7 @@ type File struct {
 type UploadJob struct {
 	ID        string    `json:"jobId"`
 	Filename  string    `json:"filename,omitempty"`
-	Status    string    `json:"status"`
+	Status    JobStatus `json:"status"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 	FileID    string    `json:"fileId,omitempty"`
