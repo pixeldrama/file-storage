@@ -27,7 +27,6 @@ services:
 
   azurite:
     image: mcr.microsoft.com/azure-storage/azurite
-    container_name: files
     ports:
       - "10000:10000"
       - "10001:10001"
@@ -44,7 +43,6 @@ services:
 
   vault:
     image: hashicorp/vault:1.16.0
-    container_name: vault
     ports:
       - "8200:8200"
     environment:
@@ -59,25 +57,28 @@ services:
       timeout: 5s
       retries: 3
 
+
   vault-init:
-    image: curlimages/curl:latest
+    image: alpine:latest
     depends_on:
       vault:
         condition: service_healthy
     volumes:
       - ./scripts:/scripts
     environment:
-      - VAULT_ADDR=http://vault:8200
-      - VAULT_TOKEN=dev-token
-      - AZURE_STORAGE_ACCOUNT=devstoreaccount1
-      - AZURE_STORAGE_KEY=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==
-      - BLOB_STORAGE_URL=http://azurite:10000/devstoreaccount1
-      - CONTAINER_NAME=files
-    command: ["/bin/sh", "-c", "chmod +x /scripts/init-vault.sh && sh /scripts/init-vault.sh"]
+     - VAULT_ADDR=http://vault:8200
+     - VAULT_TOKEN=dev-token
+     - AZURE_STORAGE_ACCOUNT=devstoreaccount1
+     - AZURE_STORAGE_KEY=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==
+     - BLOB_STORAGE_URL=http://azurite:10000/devstoreaccount1
+     - CONTAINER_NAME=files
+    command: >
+     /bin/sh -c "apk add --no-cache bash curl dos2unix &&
+        dos2unix /scripts/init-vault.sh &&
+        bash /scripts/init-vault.sh"
 
   postgres:
     image: postgres:16
-    container_name: postgres
     ports:
       - "5432:5432"
     environment:
@@ -108,12 +109,11 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:24.0.1
-    container_name: keycloak
     ports:
       - "8081:8080"
     environment:
       - KC_HOSTNAME=localhost
-      - KC_HOSTNAME_PORT=8080
+      - KC_HOSTNAME_PORT=8081
       - KC_HEALTH_ENABLED=true
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=admin
@@ -124,16 +124,20 @@ services:
       timeout: 5s
       retries: 3
 
+
   keycloak-init:
-    image: curlimages/curl:latest
+    image: alpine:latest
     depends_on:
       keycloak:
         condition: service_healthy
     volumes:
       - ./scripts:/scripts
     environment:
-      - KEYCLOAK_URL=http://keycloak:8080
-    command: ["/bin/sh", "-c", "chmod +x /scripts/setup-keycloak.sh && sh /scripts/setup-keycloak.sh"]
+      - KEYCLOAK_URL=http://keycloak:8081
+    command: >
+        /bin/sh -c "apk add --no-cache bash curl dos2unix &&
+          dos2unix /scripts/setup-keycloak.sh &&
+          bash /scripts/setup-keycloak.sh"
 
 volumes:
   azurite_data:

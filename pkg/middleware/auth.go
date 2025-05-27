@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/benjamin/file-storage-go/pkg/auth"
@@ -20,18 +21,21 @@ func NewAuthMiddleware(config AuthMiddlewareConfig) gin.HandlerFunc {
 
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
+			log.Println("Authorization header missing")
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
 		tokenString, err := config.JWTVerifier.ExtractTokenFromHeader(authHeader)
 		if err != nil {
+			log.Printf("Failed to extract token from header: %v\n", err)
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
 		token, err := config.JWTVerifier.VerifyToken(tokenString)
 		if err != nil {
+			log.Printf("Failed to verify token: %v\n", err)
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
