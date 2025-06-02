@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        DOCKER_PROXY: docker.io
+        DOCKER_PROXY: ${DOCKER_PROXY:-docker.io}
     ports:
       - "8080:8080"
     environment:
@@ -44,7 +44,7 @@ services:
     command: az storage container create --name files --connection-string 'DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;'
 
   vault:
-    image: hashicorp/vault:1.16.0
+    image: ${DOCKER_PROXY:-docker.io}/hashicorp/vault:1.16.0
     ports:
       - "8200:8200"
     environment:
@@ -61,7 +61,7 @@ services:
 
 
   vault-init:
-    image: alpine:latest
+    image: ${DOCKER_PROXY:-docker.io}/alpine:latest
     depends_on:
       vault:
         condition: service_healthy
@@ -80,7 +80,7 @@ services:
         bash /scripts/init-vault.sh"
 
   postgres:
-    image: postgres:16
+    image: ${DOCKER_PROXY:-docker.io}/postgres:16
     ports:
       - "5432:5432"
     environment:
@@ -96,7 +96,7 @@ services:
       retries: 3
 
   db-init:
-    image: migrate/migrate:latest
+    image: ${DOCKER_PROXY:-docker.io}/migrate/migrate:latest
     depends_on:
       postgres:
         condition: service_healthy
@@ -128,7 +128,7 @@ services:
 
 
   keycloak-init:
-    image: alpine:latest
+    image: ${DOCKER_PROXY:-docker.io}/alpine:latest
     depends_on:
       keycloak:
         condition: service_healthy
