@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        DOCKER_PROXY: docker.io
     ports:
       - "8080:8080"
     environment:

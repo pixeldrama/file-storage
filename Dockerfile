@@ -1,4 +1,5 @@
-FROM golang:1.24-alpine AS builder
+ARG DOCKER_PROXY="docker-proxy.interhyp-intern.de"
+FROM  ${DOCKER_PROXY}/golang:1.24-alpine AS builder
 
 WORKDIR /app
 
@@ -15,7 +16,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o main .
 
 # Create a minimal production image
-FROM alpine:latest
+FROM ${DOCKER_PROXY}/alpine:latest
 
 WORKDIR /app
 
