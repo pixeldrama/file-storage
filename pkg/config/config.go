@@ -26,6 +26,7 @@ type Config struct {
 	KeycloakClientID    string `mapstructure:"KEYCLOAK_CLIENT_ID"`
 	VirusCheckTimeout   string `mapstructure:"VIRUS_CHECK_TIMEOUT"`
 	UseMockVirusChecker bool   `mapstructure:"USE_MOCK_VIRUS_CHECKER"`
+	VirusCheckerURL     string `mapstructure:"VIRUS_CHECKER_URL"`
 }
 
 func (c *Config) GetDBConnString() string {
@@ -54,6 +55,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("KEYCLOAK_CLIENT_ID", "file-storage")
 	viper.SetDefault("VIRUS_CHECK_TIMEOUT", "5s")
 	viper.SetDefault("USE_MOCK_VIRUS_CHECKER", false)
+	viper.SetDefault("VIRUS_CHECKER_URL", "http://localhost:8082")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -77,6 +79,7 @@ func LoadConfig() (*Config, error) {
 		KeycloakClientID:    viper.GetString("KEYCLOAK_CLIENT_ID"),
 		VirusCheckTimeout:   viper.GetString("VIRUS_CHECK_TIMEOUT"),
 		UseMockVirusChecker: viper.GetBool("USE_MOCK_VIRUS_CHECKER"),
+		VirusCheckerURL:     viper.GetString("VIRUS_CHECKER_URL"),
 	}
 
 	if os.Getenv("SKIP_STORAGE_VALIDATION") == "true" {
