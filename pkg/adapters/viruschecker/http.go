@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
 )
 
@@ -22,18 +21,13 @@ type HTTPVirusChecker struct {
 	baseURL string
 }
 
-func NewHTTPVirusChecker() (*HTTPVirusChecker, error) {
-	baseURL := os.Getenv("VIRUS_CHECKER_URL")
-	if baseURL == "" {
-		return nil, fmt.Errorf("VIRUS_CHECKER_URL environment variable is required")
-	}
-
+func NewHTTPVirusChecker(baseURL string) *HTTPVirusChecker {
 	return &HTTPVirusChecker{
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
 		baseURL: baseURL,
-	}, nil
+	}
 }
 
 func (c *HTTPVirusChecker) CheckFile(ctx context.Context, reader io.Reader) (bool, error) {

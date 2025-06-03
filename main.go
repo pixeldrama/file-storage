@@ -67,11 +67,10 @@ func main() {
 		virusChecker = viruschecker.NewMockVirusChecker()
 	} else {
 		log.Println("INFO: Using HTTPVirusChecker.")
-		var err error
-		virusChecker, err = viruschecker.NewHTTPVirusChecker()
-		if err != nil {
-			log.Fatalf("Failed to initialize virus checker: %v", err)
+		if cfg.VirusCheckerURL == "" {
+			log.Fatalf("VIRUS_CHECKER_URL is required when not using mock virus checker")
 		}
+		virusChecker = viruschecker.NewHTTPVirusChecker(cfg.VirusCheckerURL)
 	}
 
 	virusCheckTimeout, err := time.ParseDuration(cfg.VirusCheckTimeout)
