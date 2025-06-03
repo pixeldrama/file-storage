@@ -13,6 +13,7 @@ services:
       - CONTAINER_NAME=files
       - SERVER_PORT=8080
       - USE_MOCK_STORAGE=false
+      - USE_MOCK_VIRUS_CHECKER=true
       - KEYCLOAK_URL=http://keycloak:8080/realms/file-storage
       - KEYCLOAK_CLIENT_ID=file-storage
       - VAULT_ADDRESS=http://vault:8200

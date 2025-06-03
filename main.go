@@ -61,9 +61,17 @@ func main() {
 
 	jobRepo := repository.NewInMemoryRepository()
 
-	virusChecker, err := viruschecker.NewHTTPVirusChecker()
-	if err != nil {
-		log.Fatalf("Failed to initialize virus checker: %v", err)
+	var virusChecker domain.VirusChecker
+	if cfg.UseMockVirusChecker {
+		log.Println("INFO: Using MockVirusChecker because USE_MOCK_VIRUS_CHECKER is set to true.")
+		virusChecker = viruschecker.NewMockVirusChecker()
+	} else {
+		log.Println("INFO: Using HTTPVirusChecker.")
+		var err error
+		virusChecker, err = viruschecker.NewHTTPVirusChecker()
+		if err != nil {
+			log.Fatalf("Failed to initialize virus checker: %v", err)
+		}
 	}
 
 	virusCheckTimeout, err := time.ParseDuration(cfg.VirusCheckTimeout)

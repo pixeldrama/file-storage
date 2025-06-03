@@ -54,5 +54,7 @@ type MetricsCollector interface {
 }
 
 type VirusChecker interface {
+	// CheckFile checks if a file contains a virus.
+	// Returns true if the file is clean, false if it contains a virus.
 	CheckFile(ctx context.Context, reader io.Reader) (bool, error)
 }
