@@ -3,7 +3,6 @@ package viruschecker
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"strings"
 )
 
@@ -14,10 +13,11 @@ func NewMockVirusChecker() *MockVirusChecker {
 }
 
 func (c *MockVirusChecker) CheckFile(ctx context.Context, reader io.Reader) (bool, error) {
-	content, err := ioutil.ReadAll(reader)
+	content, err := io.ReadAll(reader)
 	if err != nil {
 		return false, err
 	}
 
-	return strings.TrimSpace(string(content)) == "virus", nil
+	contentStr := strings.TrimSpace(string(content))
+	return contentStr != "virus", nil
 }
