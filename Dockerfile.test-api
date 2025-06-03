@@ -1,0 +1,11 @@
+FROM alpine:latest
+
+RUN apk add --no-cache bash curl jq
+
+WORKDIR /scripts
+
+COPY scripts/test-api.sh /scripts/
+
+RUN chmod +x /scripts/test-api.sh
+
+ENTRYPOINT ["/scripts/test-api.sh"] 

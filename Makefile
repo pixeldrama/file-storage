@@ -1,4 +1,4 @@
-.PHONY: help start docker-compose test-api local setup-azure setup-azurite setup setup-vault vault-init setup-db migrate setup-keycloak
+.PHONY: help start docker-compose test-api local setup-azure setup-azurite setup setup-vault vault-init migrate setup-keycloak start-app
 
 help:
 	@echo "Available commands:"
@@ -11,9 +11,9 @@ help:
 	@echo "  make setup-vault    - Ensures Vault container is running"
 	@echo "  make vault-init     - Initializes Vault with storage credentials"
 	@echo "  make setup          - Runs all setup targets (azure, azurite, vault, db)"
-	@echo "  make setup-db       - Ensures PostgreSQL is running"
 	@echo "  make migrate        - Runs database migrations"
 	@echo "  make setup-keycloak - Sets up Keycloak realm and client"
+	@echo "  make start-app      - Starts the main application"
 
 start:
 	@echo "Starting Go application..."
@@ -23,26 +23,25 @@ docker-compose:
 	@echo "Starting docker-compose services..."
 	docker-compose up -d
 
-test-api:
+test-api: start-app
 	@echo "Executing API tests..."
-	./scripts/test-api.sh
+	docker-compose run --rm test-api
 
 setup-azure:
 	@echo "Ensuring Azure CLI container is running..."
-	docker-compose up -d azure-cli
+	docker-compose up -d azurite-init
 
 setup-azurite:
 	@echo "Ensuring Azurite is running..."
 	docker-compose up -d azurite
 	@echo "Creating 'files' container in Azurite..."
 	sleep 2
-	docker exec azure-cli az storage container create --name files --connection-string 'DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;'
 
 setup-vault:
 	@echo "Ensuring Vault is running..."
 	docker-compose up -d vault
 	@echo "Waiting for Vault to be ready..."
-	@until curl -fs "http://localhost:8200/v1/sys/health" > /dev/null 2>&1; do \
+	@until docker-compose run --rm curl curl -fs "http://vault:8200/v1/sys/health" > /dev/null 2>&1; do \
 		echo "Waiting for Vault to become available..."; \
 		sleep 1; \
 	done
@@ -51,29 +50,29 @@ vault-init:
 	@echo "Initializing Vault with storage credentials..."
 	./scripts/init-vault.sh
 
-setup-db:
-	@echo "Ensuring PostgreSQL is running..."
-	docker-compose up -d postgres
-	@echo "Waiting for PostgreSQL to be ready..."
-	@until docker-compose exec -T postgres pg_isready -U postgres > /dev/null 2>&1; do \
-		echo "Waiting for PostgreSQL to become available..."; \
-		sleep 1; \
-	done
-
 migrate:
 	@echo "Running database migrations..."
-	go run cmd/migrate/main.go
+	docker-compose up db-init
 
 setup-keycloak:
 	@echo "Ensuring Keycloak is running..."
 	docker-compose up -d keycloak
 	@echo "Waiting for Keycloak to be ready..."
-	@until curl -fs "http://localhost:8081/health/ready" > /dev/null 2>&1; do \
+	@until docker-compose run --rm curl curl -v "http://keycloak:8080/health"; do \
 		echo "Waiting for Keycloak to become available..."; \
 		sleep 1; \
 	done
 	@echo "Setting up Keycloak realm and client..."
-	./scripts/setup-keycloak.sh
+	docker-compose run --rm --entrypoint /bin/sh -e KEYCLOAK_HOST=keycloak -v $(PWD)/scripts:/scripts curl -c "sh /scripts/setup-keycloak.sh"
 
-setup: setup-azure setup-azurite setup-vault setup-db setup-keycloak migrate
+start-app:
+	@echo "Starting main application..."
+	docker-compose up -d app
+	@echo "Waiting for application to be ready..."
+	@until docker-compose run --rm curl curl -fs "http://app:8080/health" > /dev/null 2>&1; do \
+		echo "Waiting for application to become available..."; \
+		sleep 1; \
+	done
+
+setup: setup-azure setup-azurite setup-vault migrate setup-keycloak start-app
 	@echo "Setup complete!" 

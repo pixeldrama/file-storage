@@ -25,14 +25,34 @@ services:
       - DB_PASSWORD=postgres
       - USE_IN_MEMORY_REPO=false
     depends_on:
-      keycloak-init:
-        condition: service_completed_successfully
       vault-init:
         condition: service_completed_successfully
       db-init:
         condition: service_completed_successfully
+      keycloak-init:
+        condition: service_completed_successfully
       azurite:
         condition: service_started
+      azurite-init:
+        condition: service_completed_successfully
+
+  test-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.test-api
+    environment:
+      - APP_URL=http://app:8080
+    depends_on:
+      app:
+        condition: service_started
+      keycloak:
+        condition: service_started
+      azurite-init:
+        condition: service_completed_successfully
+      db-init:
+        condition: service_completed_successfully
+      vault-init:
+        condition: service_completed_successfully
 
   azurite:
     image: mcr.microsoft.com/azure-storage/azurite
@@ -61,11 +81,10 @@ services:
       - IPC_LOCK
     command: server -dev
     healthcheck:
-      test: ["CMD", "sh", "-c", "VAULT_ADDR='http://0.0.0.0:8200' vault status"]
-      interval: 10s
+      test: ["CMD", "sh", "-c", "VAULT_ADDR=http://localhost:8200 vault status"]
+      interval: 5s
       timeout: 5s
-      retries: 3
-
+      retries: 5
 
   vault-init:
     image: ${DOCKER_PROXY:-docker.io}/alpine:latest
@@ -98,9 +117,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 3
+      retries: 5
 
   db-init:
     image: ${DOCKER_PROXY:-docker.io}/migrate/migrate:latest
@@ -115,6 +134,12 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=file_storage
     command: -path=/migrations -database="postgres://postgres:postgres@postgres:5432/file_storage?sslmode=disable" up
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "postgres", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   keycloak:
     image: quay.io/keycloak/keycloak:24.0.1
@@ -127,26 +152,21 @@ services:
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=admin
     command: start-dev
-    healthcheck:
-      test: ["CMD", "grep", "-q", "java", "/proc/1/cmdline"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
-
-  keycloak-init:
-    image: ${DOCKER_PROXY:-docker.io}/alpine:latest
-    depends_on:
-      keycloak:
-        condition: service_healthy
     volumes:
       - ./scripts:/scripts
-    environment:
-      - KEYCLOAK_URL=http://keycloak:8081
-    command: >
-        /bin/sh -c "apk add --no-cache bash curl dos2unix &&
-          dos2unix /scripts/setup-keycloak.sh &&
-          bash /scripts/setup-keycloak.sh"
+
+  curl:
+    image: curlimages/curl:latest
+    entrypoint: ["curl"]
+
+  keycloak-init:
+    image: alpine:latest
+    depends_on:
+      keycloak:
+        condition: service_started
+    volumes:
+      - ./scripts:/scripts
+    command: ["sh", "-c", "apk add --no-cache bash curl jq && chmod +x /scripts/init-keycloak.sh && /scripts/init-keycloak.sh"]
 
 volumes:
   azurite_data:

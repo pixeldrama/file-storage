@@ -1,4 +1,4 @@
-ARG DOCKER_PROXY="docker-proxy.interhyp-intern.de"
+ARG DOCKER_PROXY=docker.io
 FROM  ${DOCKER_PROXY}/golang:1.24-alpine AS builder
 
 WORKDIR /app
