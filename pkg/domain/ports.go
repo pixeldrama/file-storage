@@ -9,11 +9,13 @@ import (
 type JobStatus string
 
 const (
-	JobStatusUploading     JobStatus = "UPLOADING"
-	JobStatusVirusChecking JobStatus = "VIRUS_CHECKING"
-	JobStatusCompleted     JobStatus = "COMPLETED"
-	JobStatusFailed        JobStatus = "FAILED"
-	JobStatusDeleted       JobStatus = "DELETED"
+	JobStatusPending           JobStatus = "PENDING"
+	JobStatusUploading         JobStatus = "UPLOADING"
+	JobStatusVirusCheckPending JobStatus = "VIRUS_CHECK_PENDING"
+	JobStatusVirusChecking     JobStatus = "VIRUS_CHECK_IN_PROGRESS"
+	JobStatusCompleted         JobStatus = "COMPLETED"
+	JobStatusFailed            JobStatus = "FAILED"
+	JobStatusDeleted           JobStatus = "DELETED"
 )
 
 type File struct {
@@ -43,9 +45,14 @@ type UploadJobRepository interface {
 	Get(ctx context.Context, jobID string) (*UploadJob, error)
 	Update(ctx context.Context, job *UploadJob) error
 	GetByFileID(ctx context.Context, fileID string) (*UploadJob, error)
+	GetByStatus(ctx context.Context, status JobStatus) ([]*UploadJob, error)
 }
 
 type MetricsCollector interface {
 	RecordUploadDuration(status string, duration time.Duration)
 	RecordUploadSize(size int64)
+}
+
+type VirusChecker interface {
+	CheckFile(ctx context.Context, reader io.Reader) (bool, error)
 }

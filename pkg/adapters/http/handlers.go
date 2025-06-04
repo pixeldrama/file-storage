@@ -123,7 +123,7 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 		return
 	}
 
-	job.Status = domain.JobStatusCompleted
+	job.Status = domain.JobStatusVirusCheckPending
 	job.FileID = fileID
 	job.UpdatedAt = time.Now()
 	h.jobRepo.Update(c.Request.Context(), job)

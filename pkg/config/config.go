@@ -10,20 +10,21 @@ import (
 )
 
 type Config struct {
-	ServerPort       string `mapstructure:"SERVER_PORT"`
-	BlobStorageURL   string `mapstructure:"BLOB_STORAGE_URL"`
-	BlobAccountName  string `mapstructure:"BLOB_ACCOUNT_NAME"`
-	ContainerName    string `mapstructure:"CONTAINER_NAME"`
-	StorageKey       string `mapstructure:"STORAGE_KEY"`
-	VaultAddress     string `mapstructure:"VAULT_ADDRESS"`
-	VaultToken       string `mapstructure:"VAULT_TOKEN"`
-	DBHost           string `mapstructure:"DB_HOST"`
-	DBPort           string `mapstructure:"DB_PORT"`
-	DBName           string `mapstructure:"DB_NAME"`
-	DBUser           string `mapstructure:"DB_USER"`
-	DBPassword       string `mapstructure:"DB_PASSWORD"`
-	KeycloakURL      string `mapstructure:"KEYCLOAK_URL"`
-	KeycloakClientID string `mapstructure:"KEYCLOAK_CLIENT_ID"`
+	ServerPort        string `mapstructure:"SERVER_PORT"`
+	BlobStorageURL    string `mapstructure:"BLOB_STORAGE_URL"`
+	BlobAccountName   string `mapstructure:"BLOB_ACCOUNT_NAME"`
+	ContainerName     string `mapstructure:"CONTAINER_NAME"`
+	StorageKey        string `mapstructure:"STORAGE_KEY"`
+	VaultAddress      string `mapstructure:"VAULT_ADDRESS"`
+	VaultToken        string `mapstructure:"VAULT_TOKEN"`
+	DBHost            string `mapstructure:"DB_HOST"`
+	DBPort            string `mapstructure:"DB_PORT"`
+	DBName            string `mapstructure:"DB_NAME"`
+	DBUser            string `mapstructure:"DB_USER"`
+	DBPassword        string `mapstructure:"DB_PASSWORD"`
+	KeycloakURL       string `mapstructure:"KEYCLOAK_URL"`
+	KeycloakClientID  string `mapstructure:"KEYCLOAK_CLIENT_ID"`
+	VirusCheckTimeout string `mapstructure:"VIRUS_CHECK_TIMEOUT"`
 }
 
 func (c *Config) GetDBConnString() string {
@@ -50,6 +51,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("DB_PASSWORD", "postgres")
 	viper.SetDefault("KEYCLOAK_URL", "http://localhost:8081/realms/file-storage")
 	viper.SetDefault("KEYCLOAK_CLIENT_ID", "file-storage")
+	viper.SetDefault("VIRUS_CHECK_TIMEOUT", "5s")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -58,19 +60,20 @@ func LoadConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		ServerPort:       viper.GetString("SERVER_PORT"),
-		BlobStorageURL:   viper.GetString("BLOB_STORAGE_URL"),
-		BlobAccountName:  viper.GetString("BLOB_ACCOUNT_NAME"),
-		ContainerName:    viper.GetString("CONTAINER_NAME"),
-		VaultAddress:     viper.GetString("VAULT_ADDRESS"),
-		VaultToken:       viper.GetString("VAULT_TOKEN"),
-		DBHost:           viper.GetString("DB_HOST"),
-		DBPort:           viper.GetString("DB_PORT"),
-		DBName:           viper.GetString("DB_NAME"),
-		DBUser:           viper.GetString("DB_USER"),
-		DBPassword:       viper.GetString("DB_PASSWORD"),
-		KeycloakURL:      viper.GetString("KEYCLOAK_URL"),
-		KeycloakClientID: viper.GetString("KEYCLOAK_CLIENT_ID"),
+		ServerPort:        viper.GetString("SERVER_PORT"),
+		BlobStorageURL:    viper.GetString("BLOB_STORAGE_URL"),
+		BlobAccountName:   viper.GetString("BLOB_ACCOUNT_NAME"),
+		ContainerName:     viper.GetString("CONTAINER_NAME"),
+		VaultAddress:      viper.GetString("VAULT_ADDRESS"),
+		VaultToken:        viper.GetString("VAULT_TOKEN"),
+		DBHost:            viper.GetString("DB_HOST"),
+		DBPort:            viper.GetString("DB_PORT"),
+		DBName:            viper.GetString("DB_NAME"),
+		DBUser:            viper.GetString("DB_USER"),
+		DBPassword:        viper.GetString("DB_PASSWORD"),
+		KeycloakURL:       viper.GetString("KEYCLOAK_URL"),
+		KeycloakClientID:  viper.GetString("KEYCLOAK_CLIENT_ID"),
+		VirusCheckTimeout: viper.GetString("VIRUS_CHECK_TIMEOUT"),
 	}
 
 	if os.Getenv("SKIP_STORAGE_VALIDATION") == "true" {
