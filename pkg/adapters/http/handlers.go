@@ -51,7 +51,7 @@ func (h *Handlers) CreateUploadJob(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, job)
+	c.JSON(http.StatusCreated, ToAPIJob(job))
 }
 
 func (h *Handlers) GetUploadJobStatus(c *gin.Context) {
@@ -71,7 +71,7 @@ func (h *Handlers) GetUploadJobStatus(c *gin.Context) {
 		c.Header("Location", fmt.Sprintf("/files/%s", job.FileID))
 	}
 
-	c.JSON(http.StatusOK, job)
+	c.JSON(http.StatusOK, ToAPIJob(job))
 }
 
 func (h *Handlers) UploadFile(c *gin.Context) {
@@ -93,7 +93,7 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 		job.Error = "No file provided"
 		job.UpdatedAt = time.Now()
 		h.jobRepo.Update(c.Request.Context(), job)
-		c.JSON(http.StatusBadRequest, job)
+		c.JSON(http.StatusBadRequest, ToAPIJob(job))
 		return
 	}
 
@@ -103,7 +103,7 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 		job.Error = "Failed to open file"
 		job.UpdatedAt = time.Now()
 		h.jobRepo.Update(c.Request.Context(), job)
-		c.JSON(http.StatusBadRequest, job)
+		c.JSON(http.StatusBadRequest, ToAPIJob(job))
 		return
 	}
 	defer src.Close()
@@ -119,7 +119,7 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 		job.Error = err.Error()
 		job.UpdatedAt = time.Now()
 		h.jobRepo.Update(c.Request.Context(), job)
-		c.JSON(http.StatusInternalServerError, job)
+		c.JSON(http.StatusInternalServerError, ToAPIJob(job))
 		return
 	}
 
@@ -128,7 +128,7 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 	job.UpdatedAt = time.Now()
 	h.jobRepo.Update(c.Request.Context(), job)
 
-	c.JSON(http.StatusCreated, job)
+	c.JSON(http.StatusCreated, ToAPIJob(job))
 }
 
 func (h *Handlers) DownloadFile(c *gin.Context) {
