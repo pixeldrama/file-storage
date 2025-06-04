@@ -32,6 +32,12 @@ const (
 		FROM upload_jobs
 		WHERE file_id = $1
 	`
+
+	getJobsByStatusQuery = `
+		SELECT id, filename, status, created_at, updated_at, file_id, error
+		FROM upload_jobs
+		WHERE status = $1
+	`
 )
 
 type PostgresRepository struct {
@@ -132,6 +138,38 @@ func (r *PostgresRepository) GetByFileID(ctx context.Context, fileID string) (*d
 		return nil, fmt.Errorf("failed to get upload job by file ID: %w", err)
 	}
 	return job, nil
+}
+
+func (r *PostgresRepository) GetByStatus(ctx context.Context, status domain.JobStatus) ([]*domain.UploadJob, error) {
+	rows, err := r.pool.Query(ctx, getJobsByStatusQuery, status)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get jobs by status: %w", err)
+	}
+	defer rows.Close()
+
+	var jobs []*domain.UploadJob
+	for rows.Next() {
+		job := &domain.UploadJob{}
+		err := rows.Scan(
+			&job.ID,
+			&job.Filename,
+			&job.Status,
+			&job.CreatedAt,
+			&job.UpdatedAt,
+			&job.FileID,
+			&job.Error,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan job: %w", err)
+		}
+		jobs = append(jobs, job)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating jobs: %w", err)
+	}
+
+	return jobs, nil
 }
 
 func (r *PostgresRepository) Close() error {

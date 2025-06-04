@@ -27,6 +27,7 @@ type Config struct {
 	VirusCheckTimeout   string `mapstructure:"VIRUS_CHECK_TIMEOUT"`
 	UseMockVirusChecker bool   `mapstructure:"USE_MOCK_VIRUS_CHECKER"`
 	VirusCheckerURL     string `mapstructure:"VIRUS_CHECKER_URL"`
+	UseInMemoryRepo     bool   `mapstructure:"USE_IN_MEMORY_REPO"`
 }
 
 func (c *Config) GetDBConnString() string {
@@ -56,6 +57,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("VIRUS_CHECK_TIMEOUT", "5s")
 	viper.SetDefault("USE_MOCK_VIRUS_CHECKER", false)
 	viper.SetDefault("VIRUS_CHECKER_URL", "http://localhost:8082")
+	viper.SetDefault("USE_IN_MEMORY_REPO", false)
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -80,6 +82,7 @@ func LoadConfig() (*Config, error) {
 		VirusCheckTimeout:   viper.GetString("VIRUS_CHECK_TIMEOUT"),
 		UseMockVirusChecker: viper.GetBool("USE_MOCK_VIRUS_CHECKER"),
 		VirusCheckerURL:     viper.GetString("VIRUS_CHECKER_URL"),
+		UseInMemoryRepo:     viper.GetBool("USE_IN_MEMORY_REPO"),
 	}
 
 	if os.Getenv("SKIP_STORAGE_VALIDATION") == "true" {

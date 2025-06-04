@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_upload_jobs_file_id ON upload_jobs (file_id); 

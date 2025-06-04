@@ -59,7 +59,17 @@ func main() {
 		}
 	}
 
-	jobRepo := repository.NewInMemoryRepository()
+	var jobRepo domain.UploadJobRepository
+	if cfg.UseInMemoryRepo {
+		log.Println("INFO: Using InMemoryRepository because USE_IN_MEMORY_REPO is set to true.")
+		jobRepo = repository.NewInMemoryRepository()
+	} else {
+		log.Println("INFO: Using PostgresRepository.")
+		jobRepo, err = repository.NewPostgresRepository(cfg.GetDBConnString())
+		if err != nil {
+			log.Fatalf("Failed to create postgres repository: %v", err)
+		}
+	}
 
 	var virusChecker domain.VirusChecker
 	if cfg.UseMockVirusChecker {
@@ -83,6 +93,7 @@ func main() {
 		fileStorage,
 		virusChecker,
 		virusCheckTimeout,
+		metricsCollector,
 	)
 
 	go virusScanner.Start(context.Background())
