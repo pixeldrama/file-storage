@@ -61,8 +61,8 @@ func (r *VirusScannerJobRunner) Start(ctx context.Context) {
 			wg.Wait()
 			return
 		case <-ticker.C:
-			if err := r.processJobs(ctx, jobsChan); err != nil {
-				log.Printf("Error processing jobs: %v", err)
+			if err := r.queuePendingAndStuckJobs(ctx, jobsChan); err != nil {
+				log.Printf("Error queueing pending and stuck jobs: %v", err)
 			}
 		}
 	}
@@ -78,7 +78,7 @@ func (r *VirusScannerJobRunner) worker(ctx context.Context, wg *sync.WaitGroup, 
 	}
 }
 
-func (r *VirusScannerJobRunner) processJobs(ctx context.Context, jobsChan chan<- *domain.UploadJob) error {
+func (r *VirusScannerJobRunner) queuePendingAndStuckJobs(ctx context.Context, jobsChan chan<- *domain.UploadJob) error {
 	jobs, err := r.jobRepo.GetByStatus(ctx, domain.JobStatusVirusCheckPending)
 	if err != nil {
 		return fmt.Errorf("failed to get pending jobs: %w", err)
