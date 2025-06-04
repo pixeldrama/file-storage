@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/benjamin/file-storage-go/pkg/adapters/metrics"
 	"github.com/benjamin/file-storage-go/pkg/domain"
 )
 
@@ -21,6 +22,7 @@ type VirusScannerJobRunner struct {
 	virusChecker    domain.VirusChecker
 	workerCount     int
 	stuckJobTimeout time.Duration
+	metrics         *metrics.PrometheusMetrics
 }
 
 func NewVirusScannerJobRunner(
@@ -28,6 +30,7 @@ func NewVirusScannerJobRunner(
 	fileStorage domain.FileStorage,
 	virusChecker domain.VirusChecker,
 	stuckJobTimeout time.Duration,
+	metrics *metrics.PrometheusMetrics,
 ) *VirusScannerJobRunner {
 	return &VirusScannerJobRunner{
 		jobRepo:         jobRepo,
@@ -35,6 +38,7 @@ func NewVirusScannerJobRunner(
 		virusChecker:    virusChecker,
 		workerCount:     defaultWorkerCount,
 		stuckJobTimeout: stuckJobTimeout,
+		metrics:         metrics,
 	}
 }
 
@@ -108,6 +112,8 @@ func (r *VirusScannerJobRunner) processJobs(ctx context.Context, jobsChan chan<-
 }
 
 func (r *VirusScannerJobRunner) processJob(ctx context.Context, job *domain.UploadJob) error {
+	startTime := time.Now()
+
 	job.Status = domain.JobStatusVirusChecking
 	job.UpdatedAt = time.Now()
 	if err := r.jobRepo.Update(ctx, job); err != nil {
@@ -116,21 +122,25 @@ func (r *VirusScannerJobRunner) processJob(ctx context.Context, job *domain.Uplo
 
 	reader, err := r.fileStorage.Download(ctx, job.FileID)
 	if err != nil {
+		r.metrics.RecordVirusCheckDuration("error", time.Since(startTime))
 		return r.updateJobWithError(ctx, job, fmt.Errorf("failed to download file: %w", err))
 	}
 	defer reader.Close()
 
 	isClean, err := r.virusChecker.CheckFile(ctx, reader)
 	if err != nil {
+		r.metrics.RecordVirusCheckDuration("error", time.Since(startTime))
 		return r.updateJobWithError(ctx, job, fmt.Errorf("virus check failed: %w", err))
 	}
 
 	if !isClean {
+		r.metrics.RecordVirusCheckDuration("virus_detected", time.Since(startTime))
 		return r.updateJobWithError(ctx, job, fmt.Errorf("file contains malware"))
 	}
 
 	job.Status = domain.JobStatusCompleted
 	job.UpdatedAt = time.Now()
+	r.metrics.RecordVirusCheckDuration("success", time.Since(startTime))
 
 	if err := r.jobRepo.Update(ctx, job); err != nil {
 		return fmt.Errorf("failed to update job: %w", err)

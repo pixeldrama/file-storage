@@ -49,6 +49,29 @@ func TestPrometheusMetrics_RecordUploadSize(t *testing.T) {
 	}
 }
 
+func TestPrometheusMetrics_RecordVirusCheckDuration(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	metrics := &PrometheusMetrics{
+		virusCheckDuration: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "virus_check_duration_seconds",
+				Help:    "Duration of virus checks in seconds",
+				Buckets: prometheus.DefBuckets,
+			},
+			[]string{"status"},
+		),
+	}
+	registry.MustRegister(metrics.virusCheckDuration)
+
+	metrics.RecordVirusCheckDuration("success", 2*time.Second)
+	metrics.RecordVirusCheckDuration("error", 1*time.Second)
+	metrics.RecordVirusCheckDuration("virus_detected", 3*time.Second)
+
+	if count := testutil.CollectAndCount(metrics.virusCheckDuration); count != 3 {
+		t.Errorf("Expected 3 observations, got %d", count)
+	}
+}
+
 func TestNewPrometheusMetrics(t *testing.T) {
 	metrics := NewPrometheusMetrics()
 	if metrics == nil {
@@ -59,5 +82,8 @@ func TestNewPrometheusMetrics(t *testing.T) {
 	}
 	if metrics.uploadSize == nil {
 		t.Error("Expected non-nil uploadSize metric")
+	}
+	if metrics.virusCheckDuration == nil {
+		t.Error("Expected non-nil virusCheckDuration metric")
 	}
 }

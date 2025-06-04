@@ -7,8 +7,9 @@ import (
 )
 
 type PrometheusMetrics struct {
-	uploadDuration *prometheus.HistogramVec
-	uploadSize     prometheus.Histogram
+	uploadDuration     *prometheus.HistogramVec
+	uploadSize         prometheus.Histogram
+	virusCheckDuration *prometheus.HistogramVec
 }
 
 func NewPrometheusMetrics() *PrometheusMetrics {
@@ -28,10 +29,19 @@ func NewPrometheusMetrics() *PrometheusMetrics {
 				Buckets: prometheus.ExponentialBuckets(1024, 2, 10),
 			},
 		),
+		virusCheckDuration: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "virus_check_duration_seconds",
+				Help:    "Duration of virus checks in seconds",
+				Buckets: prometheus.DefBuckets,
+			},
+			[]string{"status"},
+		),
 	}
 
 	prometheus.MustRegister(metrics.uploadDuration)
 	prometheus.MustRegister(metrics.uploadSize)
+	prometheus.MustRegister(metrics.virusCheckDuration)
 
 	return metrics
 }
@@ -42,4 +52,8 @@ func (m *PrometheusMetrics) RecordUploadDuration(status string, duration time.Du
 
 func (m *PrometheusMetrics) RecordUploadSize(size int64) {
 	m.uploadSize.Observe(float64(size))
+}
+
+func (m *PrometheusMetrics) RecordVirusCheckDuration(status string, duration time.Duration) {
+	m.virusCheckDuration.WithLabelValues(status).Observe(duration.Seconds())
 }
