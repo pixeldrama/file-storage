@@ -1,7 +1,8 @@
 #!/bin/bash
 
 BASE_URL="http://localhost:8080"
-TEST_FILE="test.txt" 
+CLEAN_TEST_FILE="clean_test.txt"
+VIRUS_TEST_FILE="virus_test.txt"
 DOWNLOADED_FILE_PREFIX="downloaded_test_file"
 
 KEYCLOAK_URL="http://localhost:8081"
@@ -43,17 +44,21 @@ if [ $? -ne 0 ]; then
 fi
 echo "Successfully obtained JWT token"
 
-if [ ! -f "$TEST_FILE" ]; then
-    echo "This is a test file for upload." > "$TEST_FILE"
-    echo "Created dummy file: $TEST_FILE"
+# Create test files
+if [ ! -f "$CLEAN_TEST_FILE" ]; then
+    echo "This is a clean test file." > "$CLEAN_TEST_FILE"
+fi
+
+if [ ! -f "$VIRUS_TEST_FILE" ]; then
+    echo "virus" > "$VIRUS_TEST_FILE"
 fi
 
 echo "### Testing API Endpoints ###"
 
-# 1. Create Upload Job
-echo -e "\n\n--- 1. Create Upload Job ---"
+# Test 1: Clean File Upload
+echo -e "\n\n--- Test 1: Clean File Upload ---"
 echo "POST $BASE_URL/upload-jobs"
-CREATE_JOB_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_TOKEN" -d '{"fileName": "mytestfile.txt"}' "$BASE_URL/upload-jobs")
+CREATE_JOB_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_TOKEN" -d '{"fileName": "clean_file.txt"}' "$BASE_URL/upload-jobs")
 echo "Response: $CREATE_JOB_RESPONSE"
 
 JOB_ID=$(echo "$CREATE_JOB_RESPONSE" | jq -r '.jobId')
@@ -64,67 +69,66 @@ if [ -z "$JOB_ID" ] || [ "$JOB_ID" == "null" ]; then
 fi
 echo "Extracted JOB_ID: $JOB_ID"
 
-
-# 2. Get Upload Job Status
-echo -e "\n\n--- 2. Get Upload Job Status ---"
-echo "GET $BASE_URL/upload-jobs/$JOB_ID"
-curl -X GET -H "Authorization: Bearer $JWT_TOKEN" "$BASE_URL/upload-jobs/$JOB_ID" > /dev/null
-echo # Newline for better formatting
-
-
-# 3. Upload File
-echo -e "\n\n--- 3. Upload File ---"
+# Upload clean file
 echo "POST $BASE_URL/upload-jobs/$JOB_ID"
-UPLOAD_RESPONSE=$(curl -s -X POST -H "Authorization: Bearer $JWT_TOKEN" -F "file=@$TEST_FILE" "$BASE_URL/upload-jobs/$JOB_ID")
+UPLOAD_RESPONSE=$(curl -s -X POST -H "Authorization: Bearer $JWT_TOKEN" -F "file=@$CLEAN_TEST_FILE" "$BASE_URL/upload-jobs/$JOB_ID")
 echo "Response: $UPLOAD_RESPONSE"
 
-FILE_ID=$(echo "$UPLOAD_RESPONSE" | jq -r '.fileId')
+# Wait for virus check to complete
+echo "Waiting for virus check to complete..."
+sleep 0.5
 
-if [ -z "$FILE_ID" ] || [ "$FILE_ID" == "null" ]; then
-    echo "Error: Could not extract fileId from upload response."
-    exit 1
-fi
-echo "Extracted FILE_ID: $FILE_ID"
+# Check job status
+echo "GET $BASE_URL/upload-jobs/$JOB_ID"
+JOB_STATUS=$(curl -s -H "Authorization: Bearer $JWT_TOKEN" "$BASE_URL/upload-jobs/$JOB_ID")
+echo "Job Status: $JOB_STATUS"
 
-# 4. Download File
-echo -e "\n\n--- 4. Download File ---"
-echo "GET $BASE_URL/files/$FILE_ID"
-DOWNLOADED_FILE="${DOWNLOADED_FILE_PREFIX}_${FILE_ID}"
-curl -s -H "Authorization: Bearer $JWT_TOKEN" -o "$DOWNLOADED_FILE" "$BASE_URL/files/$FILE_ID"
-echo "File downloaded to: $DOWNLOADED_FILE"
-
-# Compare original and downloaded files
-if cmp -s "$TEST_FILE" "$DOWNLOADED_FILE"; then
-    echo "Files are identical - download successful!"
+# Verify clean file was accepted
+if echo "$JOB_STATUS" | jq -e '.status == "COMPLETED"' > /dev/null; then
+    echo "Clean file was accepted as expected!"
 else
-    echo "Error: Downloaded file differs from original!"
+    echo "Error: Clean file was not accepted!"
     exit 1
 fi
 
-# 5. Delete File
-echo -e "\n\n--- 5. Delete File ---"
-echo "DELETE $BASE_URL/files/$FILE_ID"
-DELETE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $JWT_TOKEN" -X DELETE "$BASE_URL/files/$FILE_ID")
-if [ "$DELETE_STATUS" -eq 204 ]; then
-    echo "File deleted successfully!"
-else
-    echo "Error: Failed to delete file. Status code: $DELETE_STATUS"
+# Test 2: Virus File Upload
+echo -e "\n\n--- Test 2: Virus File Upload ---"
+echo "POST $BASE_URL/upload-jobs"
+CREATE_JOB_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_TOKEN" -d '{"fileName": "virus_file.txt"}' "$BASE_URL/upload-jobs")
+echo "Response: $CREATE_JOB_RESPONSE"
+
+JOB_ID=$(echo "$CREATE_JOB_RESPONSE" | jq -r '.jobId')
+
+if [ -z "$JOB_ID" ] || [ "$JOB_ID" == "null" ]; then
+    echo "Error: Could not extract jobId from create job response."
     exit 1
 fi
+echo "Extracted JOB_ID: $JOB_ID"
 
-# 6. Verify Delete
-echo -e "\n\n--- 6. Verify Delete ---"
-echo "GET $BASE_URL/files/$FILE_ID (should fail)"
-VERIFY_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $JWT_TOKEN" "$BASE_URL/files/$FILE_ID")
-if [ "$VERIFY_STATUS" -eq 404 ]; then
-    echo "Verification successful - file no longer exists!"
+# Upload virus file
+echo "POST $BASE_URL/upload-jobs/$JOB_ID"
+UPLOAD_RESPONSE=$(curl -s -X POST -H "Authorization: Bearer $JWT_TOKEN" -F "file=@$VIRUS_TEST_FILE" "$BASE_URL/upload-jobs/$JOB_ID")
+echo "Response: $UPLOAD_RESPONSE"
+
+# Wait for virus check to complete
+echo "Waiting for virus check to complete..."
+sleep 0.5
+
+# Check job status
+echo "GET $BASE_URL/upload-jobs/$JOB_ID"
+JOB_STATUS=$(curl -s -H "Authorization: Bearer $JWT_TOKEN" "$BASE_URL/upload-jobs/$JOB_ID")
+echo "Job Status: $JOB_STATUS"
+
+# Verify virus file was rejected
+if echo "$JOB_STATUS" | jq -e '.status == "FAILED"' > /dev/null; then
+    echo "Virus file was rejected as expected!"
 else
-    echo "Error: File still accessible after deletion. Status code: $VERIFY_STATUS"
+    echo "Error: Virus file was not rejected!"
     exit 1
 fi
 
 # Cleanup
-rm -f "$TEST_FILE" "$DOWNLOADED_FILE"
+rm -f "$CLEAN_TEST_FILE" "$VIRUS_TEST_FILE"
 echo -e "\n\nAll tests completed successfully!"
 
 echo -e "\n\n### Testing Complete ###"

@@ -41,7 +41,7 @@ func (h *Handlers) CreateUploadJob(c *gin.Context) {
 	job := &domain.UploadJob{
 		ID:        jobID,
 		Filename:  req.Filename,
-		Status:    "PENDING",
+		Status:    domain.JobStatusUploading,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -51,7 +51,7 @@ func (h *Handlers) CreateUploadJob(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, job)
+	c.JSON(http.StatusCreated, ToAPIJob(job))
 }
 
 func (h *Handlers) GetUploadJobStatus(c *gin.Context) {
@@ -67,11 +67,11 @@ func (h *Handlers) GetUploadJobStatus(c *gin.Context) {
 		return
 	}
 
-	if job.Status == "COMPLETED" && job.FileID != "" {
+	if job.Status == domain.JobStatusCompleted && job.FileID != "" {
 		c.Header("Location", fmt.Sprintf("/files/%s", job.FileID))
 	}
 
-	c.JSON(http.StatusOK, job)
+	c.JSON(http.StatusOK, ToAPIJob(job))
 }
 
 func (h *Handlers) UploadFile(c *gin.Context) {
@@ -89,46 +89,46 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 
 	file, err := c.FormFile("file")
 	if err != nil {
-		job.Status = "FAILED"
+		job.Status = domain.JobStatusFailed
 		job.Error = "No file provided"
 		job.UpdatedAt = time.Now()
 		h.jobRepo.Update(c.Request.Context(), job)
-		c.JSON(http.StatusBadRequest, job)
+		c.JSON(http.StatusBadRequest, ToAPIJob(job))
 		return
 	}
 
 	src, err := file.Open()
 	if err != nil {
-		job.Status = "FAILED"
+		job.Status = domain.JobStatusFailed
 		job.Error = "Failed to open file"
 		job.UpdatedAt = time.Now()
 		h.jobRepo.Update(c.Request.Context(), job)
-		c.JSON(http.StatusBadRequest, job)
+		c.JSON(http.StatusBadRequest, ToAPIJob(job))
 		return
 	}
 	defer src.Close()
 
-	job.Status = "UPLOADING"
+	job.Status = domain.JobStatusUploading
 	job.UpdatedAt = time.Now()
 	h.jobRepo.Update(c.Request.Context(), job)
 
 	fileID := uuid.New().String()
 	err = h.fileStorage.Upload(c.Request.Context(), fileID, src)
 	if err != nil {
-		job.Status = "FAILED"
+		job.Status = domain.JobStatusFailed
 		job.Error = err.Error()
 		job.UpdatedAt = time.Now()
 		h.jobRepo.Update(c.Request.Context(), job)
-		c.JSON(http.StatusInternalServerError, job)
+		c.JSON(http.StatusInternalServerError, ToAPIJob(job))
 		return
 	}
 
-	job.Status = "COMPLETED"
+	job.Status = domain.JobStatusVirusCheckPending
 	job.FileID = fileID
 	job.UpdatedAt = time.Now()
 	h.jobRepo.Update(c.Request.Context(), job)
 
-	c.JSON(http.StatusCreated, job)
+	c.JSON(http.StatusCreated, ToAPIJob(job))
 }
 
 func (h *Handlers) DownloadFile(c *gin.Context) {
@@ -178,7 +178,7 @@ func (h *Handlers) DeleteFile(c *gin.Context) {
 	}
 
 	if job != nil {
-		job.Status = "DELETED"
+		job.Status = domain.JobStatusDeleted
 		job.UpdatedAt = time.Now()
 		if err := h.jobRepo.Update(c.Request.Context(), job); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update job status: " + err.Error()})

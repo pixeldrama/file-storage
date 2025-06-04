@@ -1,13 +1,17 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
+	"time"
 
 	"github.com/benjamin/file-storage-go/cmd/server"
+	"github.com/benjamin/file-storage-go/pkg/adapters/jobrunner"
 	"github.com/benjamin/file-storage-go/pkg/adapters/metrics"
 	"github.com/benjamin/file-storage-go/pkg/adapters/repository"
 	"github.com/benjamin/file-storage-go/pkg/adapters/storage"
+	"github.com/benjamin/file-storage-go/pkg/adapters/viruschecker"
 	"github.com/benjamin/file-storage-go/pkg/config"
 	"github.com/benjamin/file-storage-go/pkg/domain"
 )
@@ -39,9 +43,7 @@ func main() {
 		var azureStorageErr error
 		accountNameForCreds := cfg.BlobAccountName
 		if accountNameForCreds == "" {
-
 			log.Println("Warning: BlobAccountName is not set. This is fine for Azurite if BlobStorageURL is the Azurite URL. For real Azure, ensure BlobAccountName is configured.")
-
 			accountNameForCreds = cfg.BlobStorageURL
 		}
 
@@ -57,7 +59,44 @@ func main() {
 		}
 	}
 
-	jobRepo := repository.NewInMemoryRepository()
+	var jobRepo domain.UploadJobRepository
+	if cfg.UseInMemoryRepo {
+		log.Println("INFO: Using InMemoryRepository because USE_IN_MEMORY_REPO is set to true.")
+		jobRepo = repository.NewInMemoryRepository()
+	} else {
+		log.Println("INFO: Using PostgresRepository.")
+		jobRepo, err = repository.NewPostgresRepository(cfg.GetDBConnString())
+		if err != nil {
+			log.Fatalf("Failed to create postgres repository: %v", err)
+		}
+	}
+
+	var virusChecker domain.VirusChecker
+	if cfg.UseMockVirusChecker {
+		log.Println("INFO: Using MockVirusChecker because USE_MOCK_VIRUS_CHECKER is set to true.")
+		virusChecker = viruschecker.NewMockVirusChecker()
+	} else {
+		log.Println("INFO: Using HTTPVirusChecker.")
+		if cfg.VirusCheckerURL == "" {
+			log.Fatalf("VIRUS_CHECKER_URL is required when not using mock virus checker")
+		}
+		virusChecker = viruschecker.NewHTTPVirusChecker(cfg.VirusCheckerURL)
+	}
+
+	virusCheckTimeout, err := time.ParseDuration(cfg.VirusCheckTimeout)
+	if err != nil {
+		log.Fatalf("Invalid VIRUS_CHECK_TIMEOUT format: %v", err)
+	}
+
+	virusScanner := jobrunner.NewVirusScannerJobRunner(
+		jobRepo,
+		fileStorage,
+		virusChecker,
+		virusCheckTimeout,
+		metricsCollector,
+	)
+
+	go virusScanner.Start(context.Background())
 
 	serverConfig := server.ServerConfig{
 		FileStorage:      fileStorage,
