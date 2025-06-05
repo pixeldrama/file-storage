@@ -1,11 +1,11 @@
 #!/bin/bash
 
-BASE_URL="http://localhost:8080"
+BASE_URL="http://app:8080"
 CLEAN_TEST_FILE="clean_test.txt"
 VIRUS_TEST_FILE="virus_test.txt"
 DOWNLOADED_FILE_PREFIX="downloaded_test_file"
 
-KEYCLOAK_URL="http://localhost:8081"
+KEYCLOAK_URL="http://keycloak:8080"
 REALM="file-storage"
 CLIENT_ID="file-storage"
 CLIENT_SECRET="test-secret" # This matches the secret in setup-keycloak.sh
@@ -16,7 +16,7 @@ get_keycloak_token() {
         -d "grant_type=client_credentials" \
         -d "client_id=${CLIENT_ID}" \
         -d "client_secret=${CLIENT_SECRET}")
-
+    
     local token=$(echo "$token_response" | jq -r '.access_token')
     
     if [ -z "$token" ] || [ "$token" == "null" ]; then
@@ -55,10 +55,30 @@ fi
 
 echo "### Testing API Endpoints ###"
 
+# 0. Health Check
+echo -e "\n\n--- 0. Health Check ---"
+echo "GET $BASE_URL/health"
+echo "Testing connection to app..."
+curl -v "$BASE_URL/health"
+HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/health")
+if [ "$HEALTH_STATUS" -eq 200 ]; then
+    echo "Health check successful - app is running!"
+else
+    echo "Error: Health check failed. Status code: $HEALTH_STATUS"
+    exit 1
+fi
+
 # Test 1: Clean File Upload
 echo -e "\n\n--- Test 1: Clean File Upload ---"
+
+# 1. Create Upload Job
+echo -e "\n\n--- 1. Create Upload Job ---"
 echo "POST $BASE_URL/upload-jobs"
-CREATE_JOB_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_TOKEN" -d '{"fileName": "clean_file.txt"}' "$BASE_URL/upload-jobs")
+CREATE_JOB_RESPONSE=$(curl -v -X POST \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $JWT_TOKEN" \
+    -d '{"filename": "clean_file.txt"}' \
+    "$BASE_URL/upload-jobs")
 echo "Response: $CREATE_JOB_RESPONSE"
 
 JOB_ID=$(echo "$CREATE_JOB_RESPONSE" | jq -r '.jobId')

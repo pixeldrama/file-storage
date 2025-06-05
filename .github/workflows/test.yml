@@ -2,9 +2,8 @@ name: API Tests
 
 on:
   push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   test:
@@ -29,8 +28,18 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y docker-compose
 
-    - name: Setup services and run tests
+    - name: Setup services
+      run: make setup
+
+    - name: Check service logs
+      if: always()
       run: |
-        docker-compose up -d
-        sleep 10  # Give services time to start
-        ./scripts/test-api.sh 
+        docker-compose logs postgres > postgres.log
+        docker-compose logs db-init > db-init.log
+        echo "=== Postgres Logs ==="
+        cat postgres.log
+        echo "=== DB Init Logs ==="
+        cat db-init.log
+
+    - name: Run tests
+      run: make test-api
