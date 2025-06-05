@@ -13,10 +13,17 @@ services:
       - CONTAINER_NAME=files
       - SERVER_PORT=8080
       - USE_MOCK_STORAGE=false
+      - USE_MOCK_VIRUS_CHECKER=true
       - KEYCLOAK_URL=http://keycloak:8080/realms/file-storage
       - KEYCLOAK_CLIENT_ID=file-storage
       - VAULT_ADDRESS=http://vault:8200
       - VAULT_TOKEN=dev-token
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=file_storage
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - USE_IN_MEMORY_REPO=false
     depends_on:
       keycloak-init:
         condition: service_completed_successfully

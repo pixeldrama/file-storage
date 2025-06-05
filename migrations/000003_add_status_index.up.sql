@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_upload_jobs_status ON upload_jobs (status); 

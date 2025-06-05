@@ -61,3 +61,16 @@ func (r *InMemoryRepository) GetByFileID(ctx context.Context, fileID string) (*d
 	}
 	return nil, nil
 }
+
+func (r *InMemoryRepository) GetByStatus(ctx context.Context, status domain.JobStatus) ([]*domain.UploadJob, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var jobs []*domain.UploadJob
+	for _, job := range r.jobs {
+		if job.Status == status {
+			jobs = append(jobs, job)
+		}
+	}
+	return jobs, nil
+}
