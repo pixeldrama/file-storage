@@ -79,6 +79,12 @@ func (m *mockJobRepository) GetByStatus(ctx context.Context, status domain.JobSt
 	return jobs, nil
 }
 
+type mockMetrics struct{}
+
+func (m *mockMetrics) RecordUploadDuration(status string, duration time.Duration)     {}
+func (m *mockMetrics) RecordUploadSize(size int64)                                    {}
+func (m *mockMetrics) RecordVirusCheckDuration(status string, duration time.Duration) {}
+
 func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -165,11 +171,13 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 				},
 			}
 
+			metrics := &mockMetrics{}
 			runner := NewVirusScannerJobRunner(
 				repo,
 				fileStorage,
 				virusChecker,
 				5*time.Second,
+				metrics,
 			)
 
 			err := runner.processJob(context.Background(), tt.job)
@@ -233,15 +241,17 @@ func TestVirusScannerJobRunner_ProcessStuckJobs(t *testing.T) {
 		},
 	}
 
+	metrics := &mockMetrics{}
 	runner := NewVirusScannerJobRunner(
 		repo,
 		fileStorage,
 		virusChecker,
 		5*time.Second,
+		metrics,
 	)
 
 	jobsChan := make(chan *domain.UploadJob, 10)
-	err := runner.processJobs(context.Background(), jobsChan)
+	err := runner.queuePendingAndStuckJobs(context.Background(), jobsChan)
 	require.NoError(t, err)
 
 	// Both jobs should be sent to the channel
