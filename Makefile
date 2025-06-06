@@ -41,7 +41,7 @@ setup-vault:
 	@echo "Ensuring Vault is running..."
 	docker-compose up -d vault
 	@echo "Waiting for Vault to be ready..."
-	@until docker-compose run --rm curl curl -fs "http://vault:8200/v1/sys/health" > /dev/null 2>&1; do \
+	@until docker-compose run --rm curl "curl -v http://vault:8200/v1/sys/health"; do \
 		echo "Waiting for Vault to become available..."; \
 		sleep 1; \
 	done
@@ -58,18 +58,18 @@ setup-keycloak:
 	@echo "Ensuring Keycloak is running..."
 	docker-compose up -d keycloak
 	@echo "Waiting for Keycloak to be ready..."
-	@until docker-compose run --rm curl curl -v "http://keycloak:8080/health"; do \
+	@until docker-compose run --rm curl "curl -s -f http://keycloak:8080/realms/master/.well-known/openid-configuration"; do \
 		echo "Waiting for Keycloak to become available..."; \
-		sleep 1; \
+		sleep 5; \
 	done
 	@echo "Setting up Keycloak realm and client..."
-	docker-compose run --rm --entrypoint /bin/sh -e KEYCLOAK_HOST=keycloak -v $(PWD)/scripts:/scripts curl -c "sh /scripts/setup-keycloak.sh"
+	docker-compose run --rm -e KEYCLOAK_HOST=keycloak -e KEYCLOAK_PORT=8080 curl "sh /scripts/setup-keycloak.sh"
 
 start-app:
 	@echo "Starting main application..."
 	docker-compose up -d app
 	@echo "Waiting for application to be ready..."
-	@until docker-compose run --rm curl curl -fs "http://app:8080/health" > /dev/null 2>&1; do \
+	@until docker-compose run --rm curl "curl -v http://app:8080/health"; do \
 		echo "Waiting for application to become available..."; \
 		sleep 1; \
 	done
