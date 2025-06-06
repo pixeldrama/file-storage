@@ -7,10 +7,14 @@ WORKDIR /app
 COPY go.mod go.sum ./
 
 # Download dependencies
-RUN go mod download
+RUN go mod download -x
 
 # Copy the source code
 COPY . .
+
+# Run go vet and go test
+RUN go vet -v ./...
+RUN go test -v ./...
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -o main .
