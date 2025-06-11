@@ -25,6 +25,33 @@ if ! curl -fs -H "X-Vault-Token: ${VAULT_TOKEN}" "${VAULT_ADDR}/v1/sys/mounts/se
         -d '{"type": "kv", "options": {"version": "2"}}'
 fi
 
+# Check if AppRole auth method is already enabled
+if ! curl -fs -H "X-Vault-Token: ${VAULT_TOKEN}" "${VAULT_ADDR}/v1/sys/auth/approle" > /dev/null 2>&1; then
+    echo "Enabling AppRole auth method..."
+    curl -fs -H "X-Vault-Token: ${VAULT_TOKEN}" -X POST "${VAULT_ADDR}/v1/sys/auth/approle" \
+        -d '{"type": "approle"}'
+fi
+
+echo "Creating app role..."
+curl -fs -H "X-Vault-Token: ${VAULT_TOKEN}" -X POST "${VAULT_ADDR}/v1/auth/approle/role/file-storage" \
+    -d '{
+        "policies": ["file-storage-policy"],
+        "token_ttl": "1h",
+        "token_max_ttl": "4h"
+    }'
+
+echo "Creating policy..."
+curl -fs -H "X-Vault-Token: ${VAULT_TOKEN}" -X POST "${VAULT_ADDR}/v1/sys/policies/acl/file-storage-policy" \
+    -d '{
+        "policy": "path \"secret/data/storage\" { capabilities = [\"read\"] }"
+    }'
+
+echo "Getting role ID..."
+ROLE_ID=$(curl -fs -H "X-Vault-Token: ${VAULT_TOKEN}" "${VAULT_ADDR}/v1/auth/approle/role/file-storage/role-id" | jq -r '.data.role_id')
+
+echo "Getting secret ID..."
+SECRET_ID=$(curl -fs -H "X-Vault-Token: ${VAULT_TOKEN}" -X POST "${VAULT_ADDR}/v1/auth/approle/role/file-storage/secret-id" | jq -r '.data.secret_id')
+
 # Store the storage credentials
 echo "Storing storage credentials in Vault..."
 curl -fs -H "X-Vault-Token: ${VAULT_TOKEN}" -X POST "${VAULT_ADDR}/v1/secret/data/storage" \
@@ -37,4 +64,6 @@ curl -fs -H "X-Vault-Token: ${VAULT_TOKEN}" -X POST "${VAULT_ADDR}/v1/secret/dat
         }
     }"
 
-echo "Vault initialization complete!" 
+echo "Vault initialization complete!"
+echo "Role ID: ${ROLE_ID}"
+echo "Secret ID: ${SECRET_ID}"

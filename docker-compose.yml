@@ -17,7 +17,8 @@ services:
       - KEYCLOAK_URL=http://keycloak:8080/realms/file-storage
       - KEYCLOAK_CLIENT_ID=file-storage
       - VAULT_ADDRESS=http://vault:8200
-      - VAULT_TOKEN=dev-token
+      - VAULT_ROLE_ID=${VAULT_ROLE_ID:-c10826c3-addd-7264-1cf1-8e5209b74d8d}
+      - VAULT_SECRET_ID=${VAULT_SECRET_ID:-529689d5-7455-8e76-e3c7-2021d39f77d8}
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_NAME=file_storage
@@ -42,6 +43,8 @@ services:
       dockerfile: Dockerfile.test-api
     environment:
       - APP_URL=http://app:8080
+      - VAULT_ROLE_ID=${VAULT_ROLE_ID:-c10826c3-addd-7264-1cf1-8e5209b74d8d}
+      - VAULT_SECRET_ID=${VAULT_SECRET_ID:-529689d5-7455-8e76-e3c7-2021d39f77d8}
     depends_on:
       app:
         condition: service_started
@@ -101,7 +104,7 @@ services:
      - BLOB_STORAGE_URL=http://azurite:10000/devstoreaccount1
      - CONTAINER_NAME=files
     command: >
-     /bin/sh -c "apk add --no-cache bash curl dos2unix &&
+     /bin/sh -c "apk add --no-cache bash curl dos2unix jq &&
         dos2unix /scripts/init-vault.sh &&
         bash /scripts/init-vault.sh"
 

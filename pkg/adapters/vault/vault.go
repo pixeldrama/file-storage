@@ -2,6 +2,7 @@ package vault
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/vault/api"
 )
@@ -13,6 +14,7 @@ type VaultClient struct {
 func NewVaultClient(address, token string) (*VaultClient, error) {
 	config := api.DefaultConfig()
 	config.Address = address
+	config.Timeout = 10 * time.Second
 
 	client, err := api.NewClient(config)
 	if err != nil {
@@ -43,4 +45,34 @@ func (v *VaultClient) GetSecret(path string) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("secret not found at path: %s", path)
 	}
 	return secret.Data, nil
+}
+
+func (v *VaultClient) DeleteSecret(path string) error {
+	_, err := v.client.Logical().Delete(path)
+	if err != nil {
+		return fmt.Errorf("failed to delete secret: %w", err)
+	}
+	return nil
+}
+
+func (v *VaultClient) ListSecrets(path string) ([]string, error) {
+	secret, err := v.client.Logical().List(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list secrets: %w", err)
+	}
+	if secret == nil {
+		return nil, fmt.Errorf("no secrets found at path: %s", path)
+	}
+
+	keys, ok := secret.Data["keys"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid response format from vault")
+	}
+
+	result := make([]string, len(keys))
+	for i, key := range keys {
+		result[i] = key.(string)
+	}
+
+	return result, nil
 }
