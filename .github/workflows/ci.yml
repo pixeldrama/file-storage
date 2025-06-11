@@ -36,10 +36,19 @@ jobs:
       run: |
         docker-compose logs postgres > postgres.log
         docker-compose logs db-init > db-init.log
+        docker-compose logs vault > vault.log
+        docker-compose logs vault-init > vault-init.log
+        docker-compose logs app > app.log
         echo "=== Postgres Logs ==="
         cat postgres.log
         echo "=== DB Init Logs ==="
         cat db-init.log
+        echo "=== Vault Logs ==="
+        cat vault.log
+        echo "=== Vault Init Logs ==="
+        cat vault-init.log
+        echo "=== App Logs ==="
+        cat app.log
 
     - name: Run tests
-      run: make test-api
+      run: make test-api 
