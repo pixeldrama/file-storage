@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Add a unit test for all golang code which is newly written, run test and fix afterwards
