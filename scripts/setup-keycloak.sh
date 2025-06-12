@@ -30,9 +30,8 @@ delete_realm() {
 # Wait for Keycloak to be ready
 echo "Waiting for Keycloak to be ready..."
 for i in $(seq 1 $MAX_RETRIES); do
-    RESPONSE=$(curl -s http://${KEYCLOAK_HOST}:${KEYCLOAK_PORT}/health)
-    echo "Health check response: $RESPONSE"
-    if echo "$RESPONSE" | grep -q '"status": "UP"'; then
+    RESPONSE=$(curl -s http://${KEYCLOAK_HOST}:${KEYCLOAK_PORT}/realms/master/.well-known/openid-configuration)
+    if [ $? -eq 0 ]; then
         echo "Keycloak is ready!"
         break
     fi

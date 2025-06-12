@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "Waiting for Keycloak to be ready..."
-until curl -s http://keycloak:8080/health/ready; do
+until curl -s http://keycloak:8080/health; do
     sleep 5
 done
 

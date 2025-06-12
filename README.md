@@ -2,6 +2,48 @@
 
 A Go service for asynchronous file uploads and downloads using Azure Blob Storage.
 
+## Prerequisites
+
+- Go (for running the application directly with `make start`)
+- Docker and Docker Compose (for running all other commands)
+
+All other tools (Azure CLI, Azurite, etc.) are containerized and don't need to be installed locally.
+
+## Quick Start
+
+The easiest way to get started is using the provided Makefile commands:
+
+```bash
+# Start all services (database, vault, keycloak, app)
+make start-app
+
+# Run the complete setup (includes all prerequisites)
+make setup
+
+# Start the application locally with Azurite
+make local
+
+# Run API tests
+make test-api
+```
+
+## Available Commands
+
+```bash
+make start          # Starts the Go application directly (requires Go installed)
+make docker-compose # Starts all docker-compose services
+make test-api      # Executes the API tests
+make local         # Starts the Go application with Azurite
+make setup-azure   # Ensures Azure CLI container is running
+make setup-azurite # Ensures Azurite container is running and creates the 'files' container
+make setup-vault   # Ensures Vault container is running
+make vault-init    # Initializes Vault with storage credentials
+make setup         # Runs all setup targets (azure, azurite, vault, db)
+make migrate       # Runs database migrations
+make setup-keycloak # Sets up Keycloak realm and client
+make start-app     # Starts the main application
+```
+
 ## Features
 
 - Asynchronous file uploads with job tracking
@@ -10,32 +52,6 @@ A Go service for asynchronous file uploads and downloads using Azure Blob Storag
 - Environment-based configuration
 - Mocked vault integration for development
 - Automatic antivirus scanning of uploaded files
-
-## Prerequisites
-
-### Installing Required Tools
-
-#### Mac OS
-
-1. Install Azure CLI:
-```bash
-brew install azure-cli
-```
-
-2. Install Azurite (Azure Storage Emulator):
-```bash
-npm install -g azurite
-```
-
-3. Start Azurite in the background:
-```bash
-azurite &
-```
-
-4. Create the 'files' container in Azurite:
-```bash
-az storage container create --name files --connection-string 'DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;'
-```
 
 ## Configuration
 

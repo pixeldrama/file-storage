@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/benjamin/file-storage-go/pkg/domain"
+	"file-storage-go/pkg/domain"
 )
 
 type InMemoryRepository struct {

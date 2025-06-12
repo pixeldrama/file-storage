@@ -51,6 +51,7 @@ type UploadJobRepository interface {
 type MetricsCollector interface {
 	RecordUploadDuration(status string, duration time.Duration)
 	RecordUploadSize(size int64)
+	RecordVirusCheckDuration(status string, duration time.Duration)
 }
 
 type VirusChecker interface {

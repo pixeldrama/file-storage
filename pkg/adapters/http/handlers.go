@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/benjamin/file-storage-go/pkg/domain"
+	"file-storage-go/pkg/domain"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

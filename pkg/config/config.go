@@ -5,7 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/benjamin/file-storage-go/pkg/services/secrets"
+	"file-storage-go/pkg/services/secrets"
+
 	"github.com/spf13/viper"
 )
 
@@ -16,7 +17,8 @@ type Config struct {
 	ContainerName       string `mapstructure:"CONTAINER_NAME"`
 	StorageKey          string `mapstructure:"STORAGE_KEY"`
 	VaultAddress        string `mapstructure:"VAULT_ADDRESS"`
-	VaultToken          string `mapstructure:"VAULT_TOKEN"`
+	VaultRoleID         string `mapstructure:"VAULT_ROLE_ID"`
+	VaultSecretID       string `mapstructure:"VAULT_SECRET_ID"`
 	DBHost              string `mapstructure:"DB_HOST"`
 	DBPort              string `mapstructure:"DB_PORT"`
 	DBName              string `mapstructure:"DB_NAME"`
@@ -46,7 +48,6 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("BLOB_STORAGE_URL", "")
 	viper.SetDefault("CONTAINER_NAME", "files")
 	viper.SetDefault("VAULT_ADDRESS", "http://localhost:8200")
-	viper.SetDefault("VAULT_TOKEN", "dev-token")
 	viper.SetDefault("DB_HOST", "localhost")
 	viper.SetDefault("DB_PORT", "5432")
 	viper.SetDefault("DB_NAME", "file_storage")
@@ -71,7 +72,8 @@ func LoadConfig() (*Config, error) {
 		BlobAccountName:     viper.GetString("BLOB_ACCOUNT_NAME"),
 		ContainerName:       viper.GetString("CONTAINER_NAME"),
 		VaultAddress:        viper.GetString("VAULT_ADDRESS"),
-		VaultToken:          viper.GetString("VAULT_TOKEN"),
+		VaultRoleID:         viper.GetString("VAULT_ROLE_ID"),
+		VaultSecretID:       viper.GetString("VAULT_SECRET_ID"),
 		DBHost:              viper.GetString("DB_HOST"),
 		DBPort:              viper.GetString("DB_PORT"),
 		DBName:              viper.GetString("DB_NAME"),
@@ -92,7 +94,7 @@ func LoadConfig() (*Config, error) {
 	storageKey := os.Getenv("STORAGE_KEY")
 	if storageKey == "" {
 		log.Printf("Creating vault service with address: %s", config.VaultAddress)
-		vaultService, err := secrets.NewVaultService(config.VaultAddress, config.VaultToken)
+		vaultService, err := secrets.NewVaultService(config.VaultAddress, config.VaultRoleID, config.VaultSecretID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create vault service: %w", err)
 		}
