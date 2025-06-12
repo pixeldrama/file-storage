@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/benjamin/file-storage-go/pkg/adapters/metrics"
 	"github.com/benjamin/file-storage-go/pkg/domain"
 )
 
@@ -22,7 +21,7 @@ type VirusScannerJobRunner struct {
 	virusChecker    domain.VirusChecker
 	workerCount     int
 	stuckJobTimeout time.Duration
-	metrics         *metrics.PrometheusMetrics
+	metrics         domain.MetricsCollector
 }
 
 func NewVirusScannerJobRunner(
@@ -30,7 +29,7 @@ func NewVirusScannerJobRunner(
 	fileStorage domain.FileStorage,
 	virusChecker domain.VirusChecker,
 	stuckJobTimeout time.Duration,
-	metrics *metrics.PrometheusMetrics,
+	metrics domain.MetricsCollector,
 ) *VirusScannerJobRunner {
 	return &VirusScannerJobRunner{
 		jobRepo:         jobRepo,
@@ -49,7 +48,7 @@ func (r *VirusScannerJobRunner) Start(ctx context.Context) {
 	var wg sync.WaitGroup
 	jobsChan := make(chan *domain.UploadJob, defaultChannelSize)
 
-	for range r.workerCount {
+	for range make([]struct{}, r.workerCount) {
 		wg.Add(1)
 		go r.worker(ctx, &wg, jobsChan)
 	}

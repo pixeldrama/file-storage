@@ -8,14 +8,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      VAULT_ADDR: "http://localhost:8200"
-      VAULT_TOKEN: "dev-token"
-      AZURE_STORAGE_ACCOUNT: "devstoreaccount1"
-      AZURE_STORAGE_KEY: "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
-      BLOB_STORAGE_URL: "http://127.0.0.1:10000/devstoreaccount1"
-      CONTAINER_NAME: "files"
-      USE_AZURITE: "true"
+    timeout-minutes: 6
 
     steps:
     - uses: actions/checkout@v4
@@ -36,10 +29,19 @@ jobs:
       run: |
         docker-compose logs postgres > postgres.log
         docker-compose logs db-init > db-init.log
+        docker-compose logs vault > vault.log
+        docker-compose logs vault-init > vault-init.log
+        docker-compose logs app > app.log
         echo "=== Postgres Logs ==="
         cat postgres.log
         echo "=== DB Init Logs ==="
         cat db-init.log
+        echo "=== Vault Logs ==="
+        cat vault.log
+        echo "=== Vault Init Logs ==="
+        cat vault-init.log
+        echo "=== App Logs ==="
+        cat app.log
 
     - name: Run tests
-      run: make test-api
+      run: make test-api 
