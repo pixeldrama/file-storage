@@ -47,14 +47,6 @@ func (v *VaultClient) GetSecret(path string) (map[string]interface{}, error) {
 	return secret.Data, nil
 }
 
-func (v *VaultClient) DeleteSecret(path string) error {
-	_, err := v.client.Logical().Delete(path)
-	if err != nil {
-		return fmt.Errorf("failed to delete secret: %w", err)
-	}
-	return nil
-}
-
 func (v *VaultClient) ListSecrets(path string) ([]string, error) {
 	secret, err := v.client.Logical().List(path)
 	if err != nil {

@@ -35,8 +35,6 @@ func TestVaultClient(t *testing.T) {
 						},
 					},
 				})
-			} else if r.Method == http.MethodDelete {
-				w.WriteHeader(http.StatusOK)
 			}
 		case "/v1/secret/metadata":
 			if r.Method == http.MethodGet {
@@ -80,10 +78,5 @@ func TestVaultClient(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, secrets)
 		assert.Contains(t, secrets, "test")
-	})
-
-	t.Run("DeleteSecret", func(t *testing.T) {
-		err := client.DeleteSecret(path)
-		assert.NoError(t, err)
 	})
 }
