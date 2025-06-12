@@ -6,14 +6,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/benjamin/file-storage-go/cmd/server"
-	"github.com/benjamin/file-storage-go/pkg/adapters/jobrunner"
-	"github.com/benjamin/file-storage-go/pkg/adapters/metrics"
-	"github.com/benjamin/file-storage-go/pkg/adapters/repository"
-	"github.com/benjamin/file-storage-go/pkg/adapters/storage"
-	"github.com/benjamin/file-storage-go/pkg/adapters/viruschecker"
-	"github.com/benjamin/file-storage-go/pkg/config"
-	"github.com/benjamin/file-storage-go/pkg/domain"
+	"file-storage-go/cmd/server"
+	"file-storage-go/pkg/adapters/jobrunner"
+	"file-storage-go/pkg/adapters/metrics"
+	"file-storage-go/pkg/adapters/repository"
+	"file-storage-go/pkg/adapters/storage"
+	"file-storage-go/pkg/adapters/viruschecker"
+	"file-storage-go/pkg/config"
+	"file-storage-go/pkg/domain"
 )
 
 func main() {

@@ -5,7 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/benjamin/file-storage-go/pkg/services/secrets"
+	"file-storage-go/pkg/services/secrets"
+
 	"github.com/spf13/viper"
 )
 

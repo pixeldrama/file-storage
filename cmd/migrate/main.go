@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/benjamin/file-storage-go/pkg/config"
-	"github.com/benjamin/file-storage-go/pkg/database"
+	"file-storage-go/pkg/config"
+	"file-storage-go/pkg/database"
 )
 
 func main() {

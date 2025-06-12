@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/benjamin/file-storage-go/pkg/adapters/vault"
+	"file-storage-go/pkg/adapters/vault"
 )
 
 const (

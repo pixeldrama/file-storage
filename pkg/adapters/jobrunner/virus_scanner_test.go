@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/benjamin/file-storage-go/pkg/domain"
+	"file-storage-go/pkg/domain"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -4,7 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/benjamin/file-storage-go/pkg/auth"
+	"file-storage-go/pkg/auth"
+
 	"github.com/gin-gonic/gin"
 )
 

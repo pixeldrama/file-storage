@@ -6,8 +6,9 @@ import (
 	"io"
 	"time"
 
+	"file-storage-go/pkg/domain"
+
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
-	"github.com/benjamin/file-storage-go/pkg/domain"
 )
 
 type AzureBlobStorage struct {

@@ -60,3 +60,11 @@ func (v *VaultClient) ListSecrets(path string) ([]string, error) {
 
 	return result, nil
 }
+
+func (v *VaultClient) StoreSecret(path string, data map[string]interface{}) error {
+	_, err := v.client.Logical().Write(path, data)
+	if err != nil {
+		return fmt.Errorf("failed to store secret: %w", err)
+	}
+	return nil
+}
