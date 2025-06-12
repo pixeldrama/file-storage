@@ -1,4 +1,5 @@
-FROM golang:1.21-alpine
+ARG GOLANG_IMAGE=golang:1.21-alpine
+FROM ${GOLANG_IMAGE}
 
 WORKDIR /app
 

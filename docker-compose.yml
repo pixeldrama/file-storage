@@ -58,7 +58,7 @@ services:
         condition: service_completed_successfully
 
   azurite:
-    image: mcr.microsoft.com/azure-storage/azurite
+    image: ${AZURITE_IMAGE:-mcr.microsoft.com/azure-storage/azurite}
     ports:
       - "10000:10000"
       - "10001:10001"
@@ -67,14 +67,14 @@ services:
       - azurite_data:/data
 
   azurite-init:
-    image: mcr.microsoft.com/azure-cli
+    image: ${AZURE_CLI_IMAGE:-mcr.microsoft.com/azure-cli}
     depends_on:
       azurite:
         condition: service_started
     command: az storage container create --name files --connection-string 'DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;'
 
   vault:
-    image: ${DOCKER_PROXY:-docker.io}/hashicorp/vault:1.16.0
+    image: ${VAULT_IMAGE:-docker.io/hashicorp/vault:1.16.0}
     ports:
       - "8200:8200"
     environment:
@@ -90,7 +90,7 @@ services:
       retries: 5
 
   vault-init:
-    image: ${DOCKER_PROXY:-docker.io}/alpine:latest
+    image: ${ALPINE_IMAGE:-docker.io/alpine:latest}
     depends_on:
       vault:
         condition: service_healthy
@@ -109,7 +109,7 @@ services:
         bash /scripts/init-vault.sh"
 
   postgres:
-    image: ${DOCKER_PROXY:-docker.io}/postgres:16
+    image: ${POSTGRES_IMAGE:-docker.io/postgres:16}
     ports:
       - "5432:5432"
     environment:
@@ -125,7 +125,7 @@ services:
       retries: 5
 
   db-init:
-    image: ${DOCKER_PROXY:-docker.io}/migrate/migrate:latest
+    image: ${MIGRATE_IMAGE:-docker.io/migrate/migrate:latest}
     depends_on:
       postgres:
         condition: service_healthy
@@ -145,7 +145,7 @@ services:
       start_period: 10s
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.2.4
+    image: ${KEYCLOAK_IMAGE:-quay.io/keycloak/keycloak:26.2.4}
     ports:
       - "8081:8080"
     environment:
@@ -167,7 +167,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
 
   keycloak-init:
-    image: alpine:latest
+    image: ${ALPINE_IMAGE:-docker.io/alpine:latest}
     depends_on:
       keycloak:
         condition: service_started

@@ -9,6 +9,28 @@ A Go service for asynchronous file uploads and downloads using Azure Blob Storag
 
 All other tools (Azure CLI, Azurite, etc.) are containerized and don't need to be installed locally.
 
+## Setting Docker Registry
+
+Configure your Docker registry by setting the `DOCKER_PROXY` environment variable:
+
+```bash
+# Set your registry URL
+export DOCKER_PROXY=your-registry.com
+
+# Configure individual images
+export AZURITE_IMAGE=${DOCKER_PROXY}/azure-storage/azurite
+export AZURE_CLI_IMAGE=${DOCKER_PROXY}/azure-cli
+export VAULT_IMAGE=${DOCKER_PROXY}/hashicorp/vault:1.16.0
+export POSTGRES_IMAGE=${DOCKER_PROXY}/postgres:16
+export MIGRATE_IMAGE=${DOCKER_PROXY}/migrate/migrate:latest
+export KEYCLOAK_IMAGE=${DOCKER_PROXY}/keycloak/keycloak:26.2.4
+export ALPINE_IMAGE=${DOCKER_PROXY}/alpine:latest
+```
+
+This will automatically configure all Docker images to be pulled from your registry. For example:
+- `docker.io/hashicorp/vault:1.16.0` becomes `your-registry.com/hashicorp/vault:1.16.0`
+- `quay.io/keycloak/keycloak:26.2.4` becomes `your-registry.com/keycloak/keycloak:26.2.4`
+
 ## Quick Start
 
 The easiest way to get started is using the provided Makefile commands:
