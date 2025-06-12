@@ -14,15 +14,7 @@ func TestVaultClient(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/secret/data/test":
-			if r.Method == http.MethodPut {
-				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(map[string]interface{}{
-					"data": map[string]interface{}{
-						"created_time": "2024-01-01T00:00:00Z",
-						"version":      1,
-					},
-				})
-			} else if r.Method == http.MethodGet {
+			if r.Method == http.MethodGet {
 				w.WriteHeader(http.StatusOK)
 				json.NewEncoder(w).Encode(map[string]interface{}{
 					"data": map[string]interface{}{
@@ -55,16 +47,6 @@ func TestVaultClient(t *testing.T) {
 	require.NoError(t, err)
 
 	path := "secret/data/test"
-	testData := map[string]interface{}{
-		"data": map[string]interface{}{
-			"key": "value",
-		},
-	}
-
-	t.Run("StoreSecret", func(t *testing.T) {
-		err := client.StoreSecret(path, testData)
-		assert.NoError(t, err)
-	})
 
 	t.Run("GetSecret", func(t *testing.T) {
 		data, err := client.GetSecret(path)

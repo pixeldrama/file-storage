@@ -28,14 +28,6 @@ func NewVaultClient(address, token string) (*VaultClient, error) {
 	}, nil
 }
 
-func (v *VaultClient) StoreSecret(path string, data map[string]interface{}) error {
-	_, err := v.client.Logical().Write(path, data)
-	if err != nil {
-		return fmt.Errorf("failed to store secret: %w", err)
-	}
-	return nil
-}
-
 func (v *VaultClient) GetSecret(path string) (map[string]interface{}, error) {
 	secret, err := v.client.Logical().Read(path)
 	if err != nil {

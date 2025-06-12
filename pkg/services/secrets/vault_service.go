@@ -78,18 +78,6 @@ func getAppRoleToken(address, roleID, secretID string) (string, error) {
 	return result.Auth.ClientToken, nil
 }
 
-func (v *VaultService) StoreStorageCredentials(creds StorageCredentials) error {
-	data := map[string]interface{}{
-		"data": map[string]interface{}{
-			"account_name":   creds.AccountName,
-			"storage_key":    creds.StorageKey,
-			"storage_url":    creds.StorageURL,
-			"container_name": creds.ContainerName,
-		},
-	}
-	return v.client.StoreSecret(StorageCredsPath, data)
-}
-
 func (v *VaultService) GetStorageCredentials() (*StorageCredentials, error) {
 	secret, err := v.client.GetSecret(StorageCredsPath)
 	if err != nil {

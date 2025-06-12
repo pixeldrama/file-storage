@@ -64,15 +64,4 @@ func TestVaultService(t *testing.T) {
 		assert.Equal(t, "http://test-url", creds.StorageURL)
 		assert.Equal(t, "test-container", creds.ContainerName)
 	})
-
-	t.Run("StoreStorageCredentials", func(t *testing.T) {
-		creds := StorageCredentials{
-			AccountName:   "test-account",
-			StorageKey:    "test-key",
-			StorageURL:    "http://test-url",
-			ContainerName: "test-container",
-		}
-		err := service.StoreStorageCredentials(creds)
-		assert.NoError(t, err)
-	})
 }
