@@ -188,6 +188,15 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 		return
 	}
 
+	if err := h.fileAuthorization.CreateFileAuthorization(fileID, req.FileType, req.LinkedResourceID, req.LinkedResourceType); err != nil {
+		job.Status = domain.JobStatusFailed
+		job.Error = "Failed to authorize file: " + err.Error()
+		job.UpdatedAt = time.Now()
+		h.jobRepo.Update(ctx, job)
+		c.JSON(http.StatusInternalServerError, ToAPIJob(job))
+		return
+	}
+
 	job.Status = domain.JobStatusVirusCheckPending
 	job.FileID = fileID
 	job.UpdatedAt = time.Now()
@@ -298,6 +307,19 @@ func (h *Handlers) DeleteFile(c *gin.Context) {
 		job.UpdatedAt = time.Now()
 		if err := h.jobRepo.Update(ctx, job); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update job status"})
+			return
+		}
+	}
+
+	fileInfo, err := h.fileInfoRepo.Get(ctx, fileID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch file info for authorization removal"})
+		return
+	}
+
+	if fileInfo != nil {
+		if err := h.fileAuthorization.RemoveFileAuthorization(fileInfo.ID, fileInfo.FileType, fileInfo.LinkedResourceID, fileInfo.LinkedResourceType); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove file authorization"})
 			return
 		}
 	}
