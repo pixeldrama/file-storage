@@ -115,7 +115,7 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 	}
 
 	userID := c.GetString("userId")
-	authorized, err := h.fileAuthorization.AuthorizeUploadFile(userID, req.FileType, req.LinkedResourceType, req.LinkedResourceID)
+	authorized, err := h.fileAuthorization.CanUploadFile(userID, req.FileType, req.LinkedResourceType, req.LinkedResourceID)
 	if err != nil {
 		job.Status = domain.JobStatusFailed
 		job.Error = "Authorization check failed: " + err.Error()
@@ -204,7 +204,7 @@ func (h *Handlers) GetFileInfo(c *gin.Context) {
 		return
 	}
 
-	authorized, err := h.fileAuthorization.AuthorizeReadFile(userID, fileID)
+	authorized, err := h.fileAuthorization.CanReadFile(userID, fileID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authorization check failed: " + err.Error()})
 		return
@@ -236,7 +236,7 @@ func (h *Handlers) DownloadFile(c *gin.Context) {
 		return
 	}
 
-	authorized, err := h.fileAuthorization.AuthorizeReadFile(userID, fileID)
+	authorized, err := h.fileAuthorization.CanReadFile(userID, fileID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authorization check failed: " + err.Error()})
 		return
@@ -299,7 +299,7 @@ func (h *Handlers) DeleteFile(c *gin.Context) {
 		return
 	}
 
-	authorized, err := h.fileAuthorization.AuthorizeDeleteFile(userID, fileID)
+	authorized, err := h.fileAuthorization.CanDeleteFile(userID, fileID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authorization check failed: " + err.Error()})
 		return

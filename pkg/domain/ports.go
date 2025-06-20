@@ -76,7 +76,7 @@ type AuthorizationService interface {
 }
 
 type FileAuthorization interface {
-	AuthorizeUploadFile(userID, fileType, linkedResourceType, linkedResourceID string) (bool, error)
-	AuthorizeReadFile(userID, fileID string) (bool, error)
-	AuthorizeDeleteFile(userID, fileID string) (bool, error)
+	CanUploadFile(userID, fileType, linkedResourceType, linkedResourceID string) (bool, error)
+	CanReadFile(userID, fileID string) (bool, error)
+	CanDeleteFile(userID, fileID string) (bool, error)
 }

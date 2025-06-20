@@ -6,14 +6,14 @@ func NewMockFileAuthorization() *MockFileAuthorization {
 	return &MockFileAuthorization{}
 }
 
-func (m *MockFileAuthorization) AuthorizeUploadFile(userID, fileType, linkedResourceType, linkedResourceID string) (bool, error) {
+func (m *MockFileAuthorization) CanUploadFile(userID, fileType, linkedResourceType, linkedResourceID string) (bool, error) {
 	return true, nil
 }
 
-func (m *MockFileAuthorization) AuthorizeReadFile(userID, fileID string) (bool, error) {
+func (m *MockFileAuthorization) CanReadFile(userID, fileID string) (bool, error) {
 	return true, nil
 }
 
-func (m *MockFileAuthorization) AuthorizeDeleteFile(userID, fileID string) (bool, error) {
+func (m *MockFileAuthorization) CanDeleteFile(userID, fileID string) (bool, error) {
 	return true, nil
 }
