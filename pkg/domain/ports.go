@@ -79,4 +79,7 @@ type FileAuthorization interface {
 	CanUploadFile(userID, fileType, linkedResourceType, linkedResourceID string) (bool, error)
 	CanReadFile(userID, fileID string) (bool, error)
 	CanDeleteFile(userID, fileID string) (bool, error)
+
+	CreateFileAuthorization(fileID, fileType, linkedResourceID, linkedResourceType string) error
+	RemoveFileAuthorization(fileID, fileType, linkedResourceID, linkedResourceType string) error
 }
