@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/benjamin/file-storage-go/pkg/adapters/metrics"
 	"github.com/benjamin/file-storage-go/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,6 +39,12 @@ func (m *mockVirusChecker) CheckFile(ctx context.Context, reader io.Reader) (boo
 type mockJobRepository struct {
 	jobs map[string]*domain.UploadJob
 }
+
+type mockMetricsCollector struct{}
+
+func (m *mockMetricsCollector) RecordUploadDuration(status string, duration time.Duration)     {}
+func (m *mockMetricsCollector) RecordUploadSize(size int64)                                    {}
+func (m *mockMetricsCollector) RecordVirusCheckDuration(status string, duration time.Duration) {}
 
 func newMockJobRepository() *mockJobRepository {
 	return &mockJobRepository{
@@ -170,7 +175,7 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 				},
 			}
 
-			metrics := metrics.NewPrometheusMetrics()
+			metrics := &mockMetricsCollector{}
 
 			runner := NewVirusScannerJobRunner(
 				repo,
@@ -244,7 +249,7 @@ func TestVirusScannerJobRunner_ProcessStuckJobs(t *testing.T) {
 		},
 	}
 
-	metrics := metrics.NewPrometheusMetrics()
+	metrics := &mockMetricsCollector{}
 
 	runner := NewVirusScannerJobRunner(
 		repo,
