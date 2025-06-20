@@ -2,7 +2,6 @@ package http
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -87,15 +86,17 @@ func (h *Handlers) GetUploadJobStatus(c *gin.Context) {
 }
 
 func (h *Handlers) UploadFile(c *gin.Context) {
+	ctx := c.Request.Context()
 	jobID := c.Param("jobId")
-	job, err := h.jobRepo.Get(c.Request.Context(), jobID)
+	userID := c.GetString("userId")
+
+	job, err := h.jobRepo.Get(ctx, jobID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get job"})
 		return
 	}
-
 	if job == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Upload job not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Job not found"})
 		return
 	}
 
@@ -107,20 +108,19 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 	var req UploadJobReqest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		job.Status = domain.JobStatusFailed
-		job.Error = "Invalid request payload: " + err.Error()
+		job.Error = "Invalid request format"
 		job.UpdatedAt = time.Now()
-		h.jobRepo.Update(c.Request.Context(), job)
+		h.jobRepo.Update(ctx, job)
 		c.JSON(http.StatusBadRequest, ToAPIJob(job))
 		return
 	}
 
-	userID := c.GetString("userId")
 	authorized, err := h.fileAuthorization.CanUploadFile(userID, req.FileType, req.LinkedResourceType, req.LinkedResourceID)
 	if err != nil {
 		job.Status = domain.JobStatusFailed
-		job.Error = "Authorization check failed: " + err.Error()
+		job.Error = "Authorization check failed"
 		job.UpdatedAt = time.Now()
-		h.jobRepo.Update(c.Request.Context(), job)
+		h.jobRepo.Update(ctx, job)
 		c.JSON(http.StatusInternalServerError, ToAPIJob(job))
 		return
 	}
@@ -128,7 +128,7 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 		job.Status = domain.JobStatusFailed
 		job.Error = "Upload not authorized"
 		job.UpdatedAt = time.Now()
-		h.jobRepo.Update(c.Request.Context(), job)
+		h.jobRepo.Update(ctx, job)
 		c.JSON(http.StatusForbidden, ToAPIJob(job))
 		return
 	}
@@ -138,7 +138,7 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 		job.Status = domain.JobStatusFailed
 		job.Error = "No file provided"
 		job.UpdatedAt = time.Now()
-		h.jobRepo.Update(c.Request.Context(), job)
+		h.jobRepo.Update(ctx, job)
 		c.JSON(http.StatusBadRequest, ToAPIJob(job))
 		return
 	}
@@ -148,7 +148,7 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 		job.Status = domain.JobStatusFailed
 		job.Error = "Failed to open file"
 		job.UpdatedAt = time.Now()
-		h.jobRepo.Update(c.Request.Context(), job)
+		h.jobRepo.Update(ctx, job)
 		c.JSON(http.StatusBadRequest, ToAPIJob(job))
 		return
 	}
@@ -156,15 +156,15 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 
 	job.Status = domain.JobStatusUploading
 	job.UpdatedAt = time.Now()
-	h.jobRepo.Update(c.Request.Context(), job)
+	h.jobRepo.Update(ctx, job)
 
 	fileID := uuid.New().String()
-	err = h.fileStorage.Upload(c.Request.Context(), fileID, src)
+	err = h.fileStorage.Upload(ctx, fileID, src)
 	if err != nil {
 		job.Status = domain.JobStatusFailed
 		job.Error = err.Error()
 		job.UpdatedAt = time.Now()
-		h.jobRepo.Update(c.Request.Context(), job)
+		h.jobRepo.Update(ctx, job)
 		c.JSON(http.StatusInternalServerError, ToAPIJob(job))
 		return
 	}
@@ -179,11 +179,11 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 		UpdatedAt:          time.Now(),
 	}
 
-	if err := h.fileInfoRepo.Create(c.Request.Context(), fileInfo); err != nil {
+	if err := h.fileInfoRepo.Create(ctx, fileInfo); err != nil {
 		job.Status = domain.JobStatusFailed
 		job.Error = "Failed to create file record: " + err.Error()
 		job.UpdatedAt = time.Now()
-		h.jobRepo.Update(c.Request.Context(), job)
+		h.jobRepo.Update(ctx, job)
 		c.JSON(http.StatusInternalServerError, ToAPIJob(job))
 		return
 	}
@@ -191,12 +191,13 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 	job.Status = domain.JobStatusVirusCheckPending
 	job.FileID = fileID
 	job.UpdatedAt = time.Now()
-	h.jobRepo.Update(c.Request.Context(), job)
+	h.jobRepo.Update(ctx, job)
 
 	c.JSON(http.StatusCreated, ToAPIJob(job))
 }
 
 func (h *Handlers) GetFileInfo(c *gin.Context) {
+	ctx := c.Request.Context()
 	fileID := c.Param("fileId")
 	userID := c.GetString("userId")
 	if userID == "" {
@@ -206,22 +207,21 @@ func (h *Handlers) GetFileInfo(c *gin.Context) {
 
 	authorized, err := h.fileAuthorization.CanReadFile(userID, fileID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authorization check failed: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authorization check failed"})
 		return
 	}
 	if !authorized {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Read access not authorized"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return
 	}
 
-	fileInfo, err := h.fileInfoRepo.Get(c.Request.Context(), fileID)
+	fileInfo, err := h.fileInfoRepo.Get(ctx, fileID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve file info: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get file info"})
 		return
 	}
-
 	if fileInfo == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "File info not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
 		return
 	}
 
@@ -229,6 +229,7 @@ func (h *Handlers) GetFileInfo(c *gin.Context) {
 }
 
 func (h *Handlers) DownloadFile(c *gin.Context) {
+	ctx := c.Request.Context()
 	fileID := c.Param("fileId")
 	userID := c.GetString("userId")
 	if userID == "" {
@@ -238,60 +239,37 @@ func (h *Handlers) DownloadFile(c *gin.Context) {
 
 	authorized, err := h.fileAuthorization.CanReadFile(userID, fileID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authorization check failed: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authorization check failed"})
 		return
 	}
 	if !authorized {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Read access not authorized"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return
 	}
 
-	job, err := h.jobRepo.GetByFileID(c.Request.Context(), fileID)
+	fileInfo, err := h.fileInfoRepo.Get(ctx, fileID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve job details: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get file info"})
 		return
 	}
-
-	if job == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "File metadata not found"})
-		return
-	}
-
-	fileInfo, err := h.fileInfoRepo.Get(c.Request.Context(), fileID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve file details: " + err.Error()})
-		return
-	}
-
 	if fileInfo == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "File details not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
 		return
 	}
 
-	reader, err := h.fileStorage.Download(c.Request.Context(), fileID)
+	reader, err := h.fileStorage.Download(ctx, fileID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "File not found in storage"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download file"})
 		return
 	}
 	defer reader.Close()
 
-	filename := fileInfo.Filename
-	if filename == "" {
-		filename = fileID
-	}
-
-	c.Header("Content-Description", "File Transfer")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-	c.Header("Content-Type", "application/octet-stream")
-
-	c.Writer.WriteHeader(http.StatusOK)
-	_, err = io.Copy(c.Writer, reader)
-	if err != nil {
-		fmt.Printf("Error copying file to response: %v\n", err)
-	}
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileInfo.Filename))
+	c.DataFromReader(http.StatusOK, -1, fileInfo.FileType, reader, nil)
 }
 
 func (h *Handlers) DeleteFile(c *gin.Context) {
+	ctx := c.Request.Context()
 	fileID := c.Param("fileId")
 	userID := c.GetString("userId")
 	if userID == "" {
@@ -301,32 +279,32 @@ func (h *Handlers) DeleteFile(c *gin.Context) {
 
 	authorized, err := h.fileAuthorization.CanDeleteFile(userID, fileID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authorization check failed: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authorization check failed"})
 		return
 	}
 	if !authorized {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Delete access not authorized"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return
 	}
 
-	job, err := h.jobRepo.GetByFileID(c.Request.Context(), fileID)
+	job, err := h.jobRepo.GetByFileID(ctx, fileID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve job details: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get job details"})
 		return
 	}
 
 	if job != nil {
 		job.Status = domain.JobStatusDeleted
 		job.UpdatedAt = time.Now()
-		if err := h.jobRepo.Update(c.Request.Context(), job); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update job status: " + err.Error()})
+		if err := h.jobRepo.Update(ctx, job); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update job status"})
 			return
 		}
 	}
 
-	err = h.fileStorage.Delete(c.Request.Context(), fileID)
+	err = h.fileStorage.Delete(ctx, fileID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete file: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete file"})
 		return
 	}
 
