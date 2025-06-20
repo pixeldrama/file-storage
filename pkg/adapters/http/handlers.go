@@ -143,7 +143,7 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 		return
 	}
 
-	src, err := file.Open()
+	src, err := fileHeader.Open()
 	if err != nil {
 		job.Status = domain.JobStatusFailed
 		job.Error = "Failed to open file"
@@ -169,12 +169,63 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 		return
 	}
 
+	fileInfo := &domain.FileInfo{
+		ID:                 fileID,
+		Filename:           req.Filename,
+		FileType:           req.FileType,
+		LinkedResourceType: req.LinkedResourceType,
+		LinkedResourceID:   req.LinkedResourceID,
+		CreatedAt:          time.Now(),
+		UpdatedAt:          time.Now(),
+	}
+
+	if err := h.fileInfoRepo.Create(c.Request.Context(), fileInfo); err != nil {
+		job.Status = domain.JobStatusFailed
+		job.Error = "Failed to create file record: " + err.Error()
+		job.UpdatedAt = time.Now()
+		h.jobRepo.Update(c.Request.Context(), job)
+		c.JSON(http.StatusInternalServerError, ToAPIJob(job))
+		return
+	}
+
 	job.Status = domain.JobStatusVirusCheckPending
 	job.FileID = fileID
 	job.UpdatedAt = time.Now()
 	h.jobRepo.Update(c.Request.Context(), job)
 
 	c.JSON(http.StatusCreated, ToAPIJob(job))
+}
+
+func (h *Handlers) GetFileInfo(c *gin.Context) {
+	fileID := c.Param("fileId")
+	userID := c.GetString("userId")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "No user ID found in context"})
+		return
+	}
+
+	authorized, err := h.fileAuthorization.AuthorizeReadFile(userID, fileID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authorization check failed: " + err.Error()})
+		return
+	}
+	if !authorized {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Read access not authorized"})
+		return
+	}
+
+	fileInfo, err := h.fileInfoRepo.Get(c.Request.Context(), fileID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve file info: " + err.Error()})
+		return
+	}
+
+	if fileInfo == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File info not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, fileInfo)
 }
 
 func (h *Handlers) DownloadFile(c *gin.Context) {
@@ -206,6 +257,17 @@ func (h *Handlers) DownloadFile(c *gin.Context) {
 		return
 	}
 
+	fileInfo, err := h.fileInfoRepo.Get(c.Request.Context(), fileID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve file details: " + err.Error()})
+		return
+	}
+
+	if fileInfo == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File details not found"})
+		return
+	}
+
 	reader, err := h.fileStorage.Download(c.Request.Context(), fileID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "File not found in storage"})
@@ -213,7 +275,7 @@ func (h *Handlers) DownloadFile(c *gin.Context) {
 	}
 	defer reader.Close()
 
-	filename := job.Filename
+	filename := fileInfo.Filename
 	if filename == "" {
 		filename = fileID
 	}

@@ -66,17 +66,27 @@ func main() {
 	}
 
 	var jobRepo domain.UploadJobRepository
+	var fileInfoRepo domain.FileInfoRepository
 	if cfg.UseInMemoryRepo {
-		logger.Info("Using InMemoryRepository because USE_IN_MEMORY_REPO is set to true.")
-		jobRepo = repository.NewInMemoryRepository()
+		logger.Info("Using InMemoryJobRepo because USE_IN_MEMORY_REPO is set to true.")
+		jobRepo = repository.NewInMemoryJobRepo()
+		logger.Info("Using InMemoryFileInfoRepo because USE_IN_MEMORY_REPO is set to true.")
+		fileInfoRepo = repository.NewInMemoryFileInfoRepo()
 	} else {
-		logger.Info("Using PostgresRepository.")
-		jobRepo, err = repository.NewPostgresRepository(cfg.GetDBConnString())
+		logger.Info("Using PostgresJobRepo for jobs.")
+		jobRepo, err = repository.NewPostgresJobRepo(cfg.GetDBConnString())
 		if err != nil {
-			logger.Error("Failed to create postgres repository", "error", err)
-			os.Exit(1)
+			logger.Error("Failed to create postgres job repository: %v", err)
+		}
+		logger.Info("Using PostgresFileInfoRepo for file info.")
+		fileInfoRepo, err = repository.NewPostgresFileInfoRepo(cfg.GetDBConnString())
+		if err != nil {
+			logger.Error("Failed to create postgres file info repository: %v", err)
 		}
 	}
+
+	var fileAuthorization domain.FileAuthorization
+	fileAuthorization = repository.NewMockFileAuthorization()
 
 	var virusChecker domain.VirusChecker
 	if cfg.UseMockVirusChecker {
@@ -108,10 +118,12 @@ func main() {
 	go virusScanner.Start(context.Background())
 
 	serverConfig := server.ServerConfig{
-		FileStorage:      fileStorage,
-		JobRepo:          jobRepo,
-		KeycloakURL:      cfg.KeycloakURL,
-		KeycloakClientID: cfg.KeycloakClientID,
+		FileStorage:       fileStorage,
+		JobRepo:           jobRepo,
+		FileInfoRepo:      fileInfoRepo,
+		FileAuthorization: fileAuthorization,
+		KeycloakURL:       cfg.KeycloakURL,
+		KeycloakClientID:  cfg.KeycloakClientID,
 		Logger:           logger,
 	}
 

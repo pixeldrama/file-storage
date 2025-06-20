@@ -19,7 +19,6 @@ const (
 type UploadJob struct {
 	JobID           string    `json:"jobId"`
 	CreatedByUserId string    `json:"createdByUserId"`
-	Filename        string    `json:"filename,omitempty"`
 	Status          JobStatus `json:"status"`
 	CreatedAt       time.Time `json:"createdAt"`
 	UpdatedAt       time.Time `json:"updatedAt"`
@@ -52,7 +51,6 @@ func ToAPIJob(job *domain.UploadJob) *UploadJob {
 	return &UploadJob{
 		JobID:           job.ID,
 		CreatedByUserId: job.CreatedByUserId,
-		Filename:        job.Filename,
 		Status:          toAPIJobStatus(job.Status),
 		CreatedAt:       job.CreatedAt,
 		UpdatedAt:       job.UpdatedAt,

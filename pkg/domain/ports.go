@@ -18,20 +18,23 @@ const (
 	JobStatusDeleted           JobStatus = "DELETED"
 )
 
-type File struct {
-	ID        string
-	Size      int64
-	CreatedAt time.Time
+type FileInfo struct {
+	ID                 string    `json:"id"`
+	Filename           string    `json:"filename,omitempty"`
+	FileType           string    `json:"fileType,omitempty"`
+	LinkedResourceType string    `json:"linkedResourceType,omitempty"`
+	LinkedResourceID   string    `json:"linkedResourceID,omitempty"`
+	CreatedAt          time.Time `json:"createdAt"`
+	UpdatedAt          time.Time `json:"updatedAt"`
 }
 
 type UploadJob struct {
 	ID              string    `json:"jobId"`
 	CreatedByUserId string    `json:"createdByUserId"`
-	Filename        string    `json:"filename,omitempty"`
+	FileID          string    `json:"fileId,omitempty"`
 	Status          JobStatus `json:"status"`
 	CreatedAt       time.Time `json:"createdAt"`
 	UpdatedAt       time.Time `json:"updatedAt"`
-	FileID          string    `json:"fileId,omitempty"`
 	Error           string    `json:"error,omitempty"`
 }
 
@@ -47,6 +50,13 @@ type UploadJobRepository interface {
 	Update(ctx context.Context, job *UploadJob) error
 	GetByFileID(ctx context.Context, fileID string) (*UploadJob, error)
 	GetByStatus(ctx context.Context, status JobStatus) ([]*UploadJob, error)
+}
+
+type FileInfoRepository interface {
+	Create(ctx context.Context, fileInfo *FileInfo) error
+	Get(ctx context.Context, fileID string) (*FileInfo, error)
+	Update(ctx context.Context, fileInfo *FileInfo) error
+	Delete(ctx context.Context, fileID string) error
 }
 
 type MetricsCollector interface {

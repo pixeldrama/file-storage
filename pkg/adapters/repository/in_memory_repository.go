@@ -7,18 +7,18 @@ import (
 	"file-storage-go/pkg/domain"
 )
 
-type InMemoryRepository struct {
+type InMemoryJobRepo struct {
 	jobs map[string]*domain.UploadJob
 	mu   sync.RWMutex
 }
 
-func NewInMemoryRepository() *InMemoryRepository {
-	return &InMemoryRepository{
+func NewInMemoryJobRepo() *InMemoryJobRepo {
+	return &InMemoryJobRepo{
 		jobs: make(map[string]*domain.UploadJob),
 	}
 }
 
-func (r *InMemoryRepository) Create(ctx context.Context, job *domain.UploadJob) error {
+func (r *InMemoryJobRepo) Create(ctx context.Context, job *domain.UploadJob) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -26,7 +26,7 @@ func (r *InMemoryRepository) Create(ctx context.Context, job *domain.UploadJob) 
 	return nil
 }
 
-func (r *InMemoryRepository) Get(ctx context.Context, jobID string) (*domain.UploadJob, error) {
+func (r *InMemoryJobRepo) Get(ctx context.Context, jobID string) (*domain.UploadJob, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -38,7 +38,7 @@ func (r *InMemoryRepository) Get(ctx context.Context, jobID string) (*domain.Upl
 	return job, nil
 }
 
-func (r *InMemoryRepository) Update(ctx context.Context, job *domain.UploadJob) error {
+func (r *InMemoryJobRepo) Update(ctx context.Context, job *domain.UploadJob) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -50,7 +50,7 @@ func (r *InMemoryRepository) Update(ctx context.Context, job *domain.UploadJob) 
 	return nil
 }
 
-func (r *InMemoryRepository) GetByFileID(ctx context.Context, fileID string) (*domain.UploadJob, error) {
+func (r *InMemoryJobRepo) GetByFileID(ctx context.Context, fileID string) (*domain.UploadJob, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -62,7 +62,7 @@ func (r *InMemoryRepository) GetByFileID(ctx context.Context, fileID string) (*d
 	return nil, nil
 }
 
-func (r *InMemoryRepository) GetByStatus(ctx context.Context, status domain.JobStatus) ([]*domain.UploadJob, error) {
+func (r *InMemoryJobRepo) GetByStatus(ctx context.Context, status domain.JobStatus) ([]*domain.UploadJob, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -73,4 +73,55 @@ func (r *InMemoryRepository) GetByStatus(ctx context.Context, status domain.JobS
 		}
 	}
 	return jobs, nil
+}
+
+type InMemoryFileInfoRepo struct {
+	fileInfos map[string]*domain.FileInfo
+	mu        sync.RWMutex
+}
+
+func NewInMemoryFileInfoRepo() *InMemoryFileInfoRepo {
+	return &InMemoryFileInfoRepo{
+		fileInfos: make(map[string]*domain.FileInfo),
+	}
+}
+
+func (r *InMemoryFileInfoRepo) Create(ctx context.Context, fileInfo *domain.FileInfo) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.fileInfos[fileInfo.ID] = fileInfo
+	return nil
+}
+
+func (r *InMemoryFileInfoRepo) Get(ctx context.Context, fileID string) (*domain.FileInfo, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	fileInfo, exists := r.fileInfos[fileID]
+	if !exists {
+		return nil, nil
+	}
+
+	return fileInfo, nil
+}
+
+func (r *InMemoryFileInfoRepo) Update(ctx context.Context, fileInfo *domain.FileInfo) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, exists := r.fileInfos[fileInfo.ID]; !exists {
+		return nil
+	}
+
+	r.fileInfos[fileInfo.ID] = fileInfo
+	return nil
+}
+
+func (r *InMemoryFileInfoRepo) Delete(ctx context.Context, fileID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	delete(r.fileInfos, fileID)
+	return nil
 }
