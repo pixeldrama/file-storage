@@ -14,6 +14,11 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+type Claims struct {
+	UserId string `json:"user_id"`
+	jwt.RegisteredClaims
+}
+
 type KeycloakConfig struct {
 	RealmURL string
 	ClientID string
@@ -94,7 +99,7 @@ func (v *JWTVerifier) getPublicKey(kid string) (KeycloakPublicKey, error) {
 
 func (v *JWTVerifier) VerifyToken(tokenString string) (*jwt.Token, error) {
 	parser := jwt.Parser{}
-	token, _, err := parser.ParseUnverified(tokenString, jwt.MapClaims{})
+	token, _, err := parser.ParseUnverified(tokenString, &Claims{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse token header: %w", err)
 	}
@@ -109,7 +114,7 @@ func (v *JWTVerifier) VerifyToken(tokenString string) (*jwt.Token, error) {
 		return nil, err
 	}
 
-	token, err = jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err = jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		if token.Method.Alg() != "RS256" {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
