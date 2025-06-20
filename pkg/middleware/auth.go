@@ -41,8 +41,46 @@ func NewAuthMiddleware(config AuthMiddlewareConfig) gin.HandlerFunc {
 			return
 		}
 
-		// Store the token claims in the context for later use
-		c.Set("token", token)
+		claims, ok := token.Claims.(*auth.Claims)
+		if !ok {
+			log.Printf("Invalid token claims format")
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
+		c.Set("claims", claims)
+		c.Next()
+	}
+}
+
+func RequireUserId() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.URL.Path == "/health" || c.Request.URL.Path == "/metrics" {
+			c.Next()
+			return
+		}
+
+		claimsInterface, exists := c.Get("claims")
+		if !exists {
+			log.Printf("No claims found in context")
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
+		claims, ok := claimsInterface.(*auth.Claims)
+		if !ok {
+			log.Printf("Invalid claims format in context")
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
+		if claims.UserId == "" {
+			log.Printf("Missing userId in token claims")
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
+		c.Set("userId", claims.UserId)
 		c.Next()
 	}
 }

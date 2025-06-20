@@ -25,13 +25,14 @@ type File struct {
 }
 
 type UploadJob struct {
-	ID        string    `json:"jobId"`
-	Filename  string    `json:"filename,omitempty"`
-	Status    JobStatus `json:"status"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	FileID    string    `json:"fileId,omitempty"`
-	Error     string    `json:"error,omitempty"`
+	ID              string    `json:"jobId"`
+	CreatedByUserId string    `json:"createdByUserId"`
+	Filename        string    `json:"filename,omitempty"`
+	Status          JobStatus `json:"status"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
+	FileID          string    `json:"fileId,omitempty"`
+	Error           string    `json:"error,omitempty"`
 }
 
 type FileStorage interface {

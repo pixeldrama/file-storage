@@ -12,30 +12,30 @@ import (
 
 const (
 	createJobQuery = `
-		INSERT INTO upload_jobs (id, filename, status, created_at, updated_at, file_id, error)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO upload_jobs (id, created_by_user_id, filename, status, created_at, updated_at, file_id, error)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
 	getJobQuery = `
-		SELECT id, filename, status, created_at, updated_at, file_id, error
+		SELECT id, created_by_user_id, filename, status, created_at, updated_at, file_id, error
 		FROM upload_jobs
 		WHERE id = $1
 	`
 
 	updateJobQuery = `
 		UPDATE upload_jobs
-		SET filename = $1, status = $2, updated_at = $3, file_id = $4, error = $5
-		WHERE id = $6
+		SET created_by_user_id = $1, filename = $2, status = $3, updated_at = $4, file_id = $5, error = $6
+		WHERE id = $7
 	`
 
 	getJobByFileIDQuery = `
-		SELECT id, filename, status, created_at, updated_at, file_id, error
+		SELECT id, created_by_user_id, filename, status, created_at, updated_at, file_id, error
 		FROM upload_jobs
 		WHERE file_id = $1
 	`
 
 	getJobsByStatusQuery = `
-		SELECT id, filename, status, created_at, updated_at, file_id, error
+		SELECT id, created_by_user_id, filename, status, created_at, updated_at, file_id, error
 		FROM upload_jobs
 		WHERE status = $1
 	`
@@ -68,6 +68,7 @@ func NewPostgresRepository(connStr string) (*PostgresRepository, error) {
 func (r *PostgresRepository) Create(ctx context.Context, job *domain.UploadJob) error {
 	_, err := r.pool.Exec(ctx, createJobQuery,
 		job.ID,
+		job.CreatedByUserId,
 		job.Filename,
 		job.Status,
 		job.CreatedAt,
@@ -85,6 +86,7 @@ func (r *PostgresRepository) Get(ctx context.Context, jobID string) (*domain.Upl
 	job := &domain.UploadJob{}
 	err := r.pool.QueryRow(ctx, getJobQuery, jobID).Scan(
 		&job.ID,
+		&job.CreatedByUserId,
 		&job.Filename,
 		&job.Status,
 		&job.CreatedAt,
@@ -103,6 +105,7 @@ func (r *PostgresRepository) Get(ctx context.Context, jobID string) (*domain.Upl
 
 func (r *PostgresRepository) Update(ctx context.Context, job *domain.UploadJob) error {
 	result, err := r.pool.Exec(ctx, updateJobQuery,
+		job.CreatedByUserId,
 		job.Filename,
 		job.Status,
 		job.UpdatedAt,
@@ -125,6 +128,7 @@ func (r *PostgresRepository) GetByFileID(ctx context.Context, fileID string) (*d
 	job := &domain.UploadJob{}
 	err := r.pool.QueryRow(ctx, getJobByFileIDQuery, fileID).Scan(
 		&job.ID,
+		&job.CreatedByUserId,
 		&job.Filename,
 		&job.Status,
 		&job.CreatedAt,
@@ -153,6 +157,7 @@ func (r *PostgresRepository) GetByStatus(ctx context.Context, status domain.JobS
 		job := &domain.UploadJob{}
 		err := rows.Scan(
 			&job.ID,
+			&job.CreatedByUserId,
 			&job.Filename,
 			&job.Status,
 			&job.CreatedAt,

@@ -17,13 +17,14 @@ const (
 )
 
 type UploadJob struct {
-	JobID     string    `json:"jobId"`
-	Filename  string    `json:"filename,omitempty"`
-	Status    JobStatus `json:"status"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	FileID    string    `json:"fileId,omitempty"`
-	Error     string    `json:"error,omitempty"`
+	JobID           string    `json:"jobId"`
+	CreatedByUserId string    `json:"createdByUserId"`
+	Filename        string    `json:"filename,omitempty"`
+	Status          JobStatus `json:"status"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
+	FileID          string    `json:"fileId,omitempty"`
+	Error           string    `json:"error,omitempty"`
 }
 
 func toAPIJobStatus(domainStatus domain.JobStatus) JobStatus {
@@ -49,12 +50,13 @@ func ToAPIJob(job *domain.UploadJob) *UploadJob {
 	}
 
 	return &UploadJob{
-		JobID:     job.ID,
-		Filename:  job.Filename,
-		Status:    toAPIJobStatus(job.Status),
-		CreatedAt: job.CreatedAt,
-		UpdatedAt: job.UpdatedAt,
-		FileID:    job.FileID,
-		Error:     job.Error,
+		JobID:           job.ID,
+		CreatedByUserId: job.CreatedByUserId,
+		Filename:        job.Filename,
+		Status:          toAPIJobStatus(job.Status),
+		CreatedAt:       job.CreatedAt,
+		UpdatedAt:       job.UpdatedAt,
+		FileID:          job.FileID,
+		Error:           job.Error,
 	}
 }

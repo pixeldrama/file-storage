@@ -53,6 +53,8 @@ func SetupRouter(config ServerConfig) *gin.Engine {
 		JWTVerifier: jwtVerifier,
 	}))
 
+	r.Use(middleware.RequireUserId())
+
 	r.POST("/upload-jobs", h.CreateUploadJob)
 	r.GET("/upload-jobs/:jobId", h.GetUploadJobStatus)
 	r.POST("/upload-jobs/:jobId", h.UploadFile)
