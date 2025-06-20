@@ -12,14 +12,16 @@ import (
 )
 
 type ServerConfig struct {
-	FileStorage      domain.FileStorage
-	JobRepo          domain.UploadJobRepository
-	KeycloakURL      string
-	KeycloakClientID string
+	FileStorage       domain.FileStorage
+	JobRepo           domain.UploadJobRepository
+	FileInfoRepo      domain.FileInfoRepository
+	FileAuthorization domain.FileAuthorization
+	KeycloakURL       string
+	KeycloakClientID  string
 }
 
 func SetupRouter(config ServerConfig) *gin.Engine {
-	h := handlers.NewHandlers(config.FileStorage, config.JobRepo)
+	h := handlers.NewHandlers(config.FileStorage, config.JobRepo, config.FileInfoRepo, config.FileAuthorization)
 
 	r := gin.Default()
 
@@ -45,7 +47,8 @@ func SetupRouter(config ServerConfig) *gin.Engine {
 	r.POST("/upload-jobs", h.CreateUploadJob)
 	r.GET("/upload-jobs/:jobId", h.GetUploadJobStatus)
 	r.POST("/upload-jobs/:jobId", h.UploadFile)
-	r.GET("/files/:fileId", h.DownloadFile)
+	r.GET("/files/:fileId", h.GetFileInfo)
+	r.GET("/files/:fileId/download", h.DownloadFile)
 	r.DELETE("/files/:fileId", h.DeleteFile)
 
 	return r

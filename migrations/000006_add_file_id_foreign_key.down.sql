@@ -1,0 +1,1 @@
+ALTER TABLE upload_jobs DROP CONSTRAINT fk_upload_jobs_file_id; 
