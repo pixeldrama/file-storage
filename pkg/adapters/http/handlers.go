@@ -12,29 +12,30 @@ import (
 	"github.com/google/uuid"
 )
 
-type CreateUploadJobRequest struct {
-	Filename string `json:"filename" binding:"required"`
+type UploadJobReqest struct {
+	Filename           string `json:"filename" binding:"required"`
+	FileType           string `json:"fileType" binding:"required"`
+	LinkedResourceType string `json:"linkedResourceType" binding:"required"`
+	LinkedResourceID   string `json:"linkedResourceID" binding:"required"`
 }
 
 type Handlers struct {
-	fileStorage domain.FileStorage
-	jobRepo     domain.UploadJobRepository
+	fileStorage       domain.FileStorage
+	jobRepo           domain.UploadJobRepository
+	fileInfoRepo      domain.FileInfoRepository
+	fileAuthorization domain.FileAuthorization
 }
 
-func NewHandlers(fileStorage domain.FileStorage, jobRepo domain.UploadJobRepository) *Handlers {
+func NewHandlers(fileStorage domain.FileStorage, jobRepo domain.UploadJobRepository, fileInfoRepo domain.FileInfoRepository, fileAuthorization domain.FileAuthorization) *Handlers {
 	return &Handlers{
-		fileStorage: fileStorage,
-		jobRepo:     jobRepo,
+		fileStorage:       fileStorage,
+		jobRepo:           jobRepo,
+		fileInfoRepo:      fileInfoRepo,
+		fileAuthorization: fileAuthorization,
 	}
 }
 
 func (h *Handlers) CreateUploadJob(c *gin.Context) {
-	var req CreateUploadJobRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload: " + err.Error()})
-		return
-	}
-
 	userID := c.GetString("userId")
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "No user ID found in context"})
@@ -47,7 +48,6 @@ func (h *Handlers) CreateUploadJob(c *gin.Context) {
 	job := &domain.UploadJob{
 		ID:              jobID,
 		CreatedByUserId: userID,
-		Filename:        req.Filename,
 		Status:          domain.JobStatusUploading,
 		CreatedAt:       now,
 		UpdatedAt:       now,
@@ -104,7 +104,36 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 		return
 	}
 
-	file, err := c.FormFile("file")
+	var req UploadJobReqest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		job.Status = domain.JobStatusFailed
+		job.Error = "Invalid request payload: " + err.Error()
+		job.UpdatedAt = time.Now()
+		h.jobRepo.Update(c.Request.Context(), job)
+		c.JSON(http.StatusBadRequest, ToAPIJob(job))
+		return
+	}
+
+	userID := c.GetString("userId")
+	authorized, err := h.fileAuthorization.AuthorizeUploadFile(userID, req.FileType, req.LinkedResourceType, req.LinkedResourceID)
+	if err != nil {
+		job.Status = domain.JobStatusFailed
+		job.Error = "Authorization check failed: " + err.Error()
+		job.UpdatedAt = time.Now()
+		h.jobRepo.Update(c.Request.Context(), job)
+		c.JSON(http.StatusInternalServerError, ToAPIJob(job))
+		return
+	}
+	if !authorized {
+		job.Status = domain.JobStatusFailed
+		job.Error = "Upload not authorized"
+		job.UpdatedAt = time.Now()
+		h.jobRepo.Update(c.Request.Context(), job)
+		c.JSON(http.StatusForbidden, ToAPIJob(job))
+		return
+	}
+
+	fileHeader, err := c.FormFile("file")
 	if err != nil {
 		job.Status = domain.JobStatusFailed
 		job.Error = "No file provided"
@@ -150,6 +179,21 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 
 func (h *Handlers) DownloadFile(c *gin.Context) {
 	fileID := c.Param("fileId")
+	userID := c.GetString("userId")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "No user ID found in context"})
+		return
+	}
+
+	authorized, err := h.fileAuthorization.AuthorizeReadFile(userID, fileID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authorization check failed: " + err.Error()})
+		return
+	}
+	if !authorized {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Read access not authorized"})
+		return
+	}
 
 	job, err := h.jobRepo.GetByFileID(c.Request.Context(), fileID)
 	if err != nil {
@@ -187,6 +231,21 @@ func (h *Handlers) DownloadFile(c *gin.Context) {
 
 func (h *Handlers) DeleteFile(c *gin.Context) {
 	fileID := c.Param("fileId")
+	userID := c.GetString("userId")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "No user ID found in context"})
+		return
+	}
+
+	authorized, err := h.fileAuthorization.AuthorizeDeleteFile(userID, fileID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authorization check failed: " + err.Error()})
+		return
+	}
+	if !authorized {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Delete access not authorized"})
+		return
+	}
 
 	job, err := h.jobRepo.GetByFileID(c.Request.Context(), fileID)
 	if err != nil {

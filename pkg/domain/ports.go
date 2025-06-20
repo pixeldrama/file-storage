@@ -60,3 +60,13 @@ type VirusChecker interface {
 	// Returns true if the file is clean, false if it contains a virus.
 	CheckFile(ctx context.Context, reader io.Reader) (bool, error)
 }
+
+type AuthorizationService interface {
+	Authorize(ctx context.Context, userID string, resourceType string, resourceID string, action string) (bool, error)
+}
+
+type FileAuthorization interface {
+	AuthorizeUploadFile(userID, fileType, linkedResourceType, linkedResourceID string) (bool, error)
+	AuthorizeReadFile(userID, fileID string) (bool, error)
+	AuthorizeDeleteFile(userID, fileID string) (bool, error)
+}
