@@ -35,15 +35,22 @@ func (h *Handlers) CreateUploadJob(c *gin.Context) {
 		return
 	}
 
+	userID := c.GetString("userId")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "No user ID found in context"})
+		return
+	}
+
 	jobID := uuid.New().String()
 	now := time.Now()
 
 	job := &domain.UploadJob{
-		ID:        jobID,
-		Filename:  req.Filename,
-		Status:    domain.JobStatusUploading,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:              jobID,
+		CreatedByUserId: userID,
+		Filename:        req.Filename,
+		Status:          domain.JobStatusUploading,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	if err := h.jobRepo.Create(c.Request.Context(), job); err != nil {
@@ -67,6 +74,11 @@ func (h *Handlers) GetUploadJobStatus(c *gin.Context) {
 		return
 	}
 
+	if err := h.validateUserAccess(c, job); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
 	if job.Status == domain.JobStatusCompleted && job.FileID != "" {
 		c.Header("Location", fmt.Sprintf("/files/%s", job.FileID))
 	}
@@ -84,6 +96,11 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 
 	if job == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Upload job not found"})
+		return
+	}
+
+	if err := h.validateUserAccess(c, job); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -193,4 +210,18 @@ func (h *Handlers) DeleteFile(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+func (h *Handlers) validateUserAccess(c *gin.Context, job *domain.UploadJob) error {
+	userID := c.GetString("userId")
+
+	if userID == "" {
+		return fmt.Errorf("no user ID found in context")
+	}
+
+	if job.CreatedByUserId != userID {
+		return fmt.Errorf("access denied: job belongs to different user")
+	}
+
+	return nil
 }

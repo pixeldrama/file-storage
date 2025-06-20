@@ -12,11 +12,12 @@ func TestInMemoryRepository_Create(t *testing.T) {
 	repo := NewInMemoryRepository()
 	ctx := context.Background()
 	job := &domain.UploadJob{
-		ID:        "test-job",
-		Filename:  "test.txt",
-		Status:    domain.JobStatusUploading,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:              "test-job",
+		CreatedByUserId: "test-user",
+		Filename:        "test.txt",
+		Status:          domain.JobStatusUploading,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
 
 	err := repo.Create(ctx, job)
@@ -38,11 +39,12 @@ func TestInMemoryRepository_Get(t *testing.T) {
 	repo := NewInMemoryRepository()
 	ctx := context.Background()
 	job := &domain.UploadJob{
-		ID:        "test-job",
-		Filename:  "test.txt",
-		Status:    domain.JobStatusUploading,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:              "test-job",
+		CreatedByUserId: "test-user",
+		Filename:        "test.txt",
+		Status:          domain.JobStatusUploading,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
 
 	repo.jobs[job.ID] = job
@@ -71,21 +73,23 @@ func TestInMemoryRepository_Update(t *testing.T) {
 	repo := NewInMemoryRepository()
 	ctx := context.Background()
 	job := &domain.UploadJob{
-		ID:        "test-job",
-		Filename:  "test.txt",
-		Status:    domain.JobStatusUploading,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:              "test-job",
+		CreatedByUserId: "test-user",
+		Filename:        "test.txt",
+		Status:          domain.JobStatusUploading,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
 
 	repo.jobs[job.ID] = job
 
 	updatedJob := &domain.UploadJob{
-		ID:        job.ID,
-		Filename:  job.Filename,
-		Status:    domain.JobStatusCompleted,
-		CreatedAt: job.CreatedAt,
-		UpdatedAt: time.Now(),
+		ID:              job.ID,
+		CreatedByUserId: job.CreatedByUserId,
+		Filename:        job.Filename,
+		Status:          domain.JobStatusCompleted,
+		CreatedAt:       job.CreatedAt,
+		UpdatedAt:       time.Now(),
 	}
 
 	err := repo.Update(ctx, updatedJob)
@@ -108,12 +112,13 @@ func TestInMemoryRepository_GetByFileID(t *testing.T) {
 	repo := NewInMemoryRepository()
 	ctx := context.Background()
 	job := &domain.UploadJob{
-		ID:        "test-job",
-		Filename:  "test.txt",
-		Status:    domain.JobStatusCompleted,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-		FileID:    "test-file-id",
+		ID:              "test-job",
+		CreatedByUserId: "test-user",
+		Filename:        "test.txt",
+		Status:          domain.JobStatusCompleted,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+		FileID:          "test-file-id",
 	}
 
 	repo.jobs[job.ID] = job
@@ -146,10 +151,11 @@ func TestInMemoryRepository_ConcurrentOperations(t *testing.T) {
 	go func() {
 		for i := 0; i < 100; i++ {
 			job := &domain.UploadJob{
-				ID:        "job1",
-				Status:    domain.JobStatusUploading,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
+				ID:              "job1",
+				CreatedByUserId: "test-user",
+				Status:          domain.JobStatusUploading,
+				CreatedAt:       time.Now(),
+				UpdatedAt:       time.Now(),
 			}
 			repo.Create(ctx, job)
 		}

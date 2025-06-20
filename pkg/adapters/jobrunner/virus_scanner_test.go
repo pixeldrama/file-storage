@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/benjamin/file-storage-go/pkg/adapters/metrics"
 	"github.com/benjamin/file-storage-go/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -92,11 +93,12 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 		{
 			name: "successful virus check",
 			job: &domain.UploadJob{
-				ID:        "test-job",
-				FileID:    "test-file",
-				Status:    domain.JobStatusVirusCheckPending,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
+				ID:              "test-job",
+				CreatedByUserId: "test-user",
+				FileID:          "test-file",
+				Status:          domain.JobStatusVirusCheckPending,
+				CreatedAt:       time.Now(),
+				UpdatedAt:       time.Now(),
 			},
 			checkResult:    true,
 			expectedStatus: domain.JobStatusCompleted,
@@ -104,11 +106,12 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 		{
 			name: "virus check failed - malware detected",
 			job: &domain.UploadJob{
-				ID:        "test-job",
-				FileID:    "test-file",
-				Status:    domain.JobStatusVirusCheckPending,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
+				ID:              "test-job",
+				CreatedByUserId: "test-user",
+				FileID:          "test-file",
+				Status:          domain.JobStatusVirusCheckPending,
+				CreatedAt:       time.Now(),
+				UpdatedAt:       time.Now(),
 			},
 			checkResult:    false,
 			expectedStatus: domain.JobStatusFailed,
@@ -117,11 +120,12 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 		{
 			name: "download error",
 			job: &domain.UploadJob{
-				ID:        "test-job",
-				FileID:    "test-file",
-				Status:    domain.JobStatusVirusCheckPending,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
+				ID:              "test-job",
+				CreatedByUserId: "test-user",
+				FileID:          "test-file",
+				Status:          domain.JobStatusVirusCheckPending,
+				CreatedAt:       time.Now(),
+				UpdatedAt:       time.Now(),
 			},
 			downloadErr:    errors.New("download failed"),
 			expectedStatus: domain.JobStatusFailed,
@@ -130,11 +134,12 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 		{
 			name: "virus check error",
 			job: &domain.UploadJob{
-				ID:        "test-job",
-				FileID:    "test-file",
-				Status:    domain.JobStatusVirusCheckPending,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
+				ID:              "test-job",
+				CreatedByUserId: "test-user",
+				FileID:          "test-file",
+				Status:          domain.JobStatusVirusCheckPending,
+				CreatedAt:       time.Now(),
+				UpdatedAt:       time.Now(),
 			},
 			checkErr:       errors.New("check failed"),
 			expectedStatus: domain.JobStatusFailed,
@@ -165,11 +170,14 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 				},
 			}
 
+			metrics := metrics.NewPrometheusMetrics()
+
 			runner := NewVirusScannerJobRunner(
 				repo,
 				fileStorage,
 				virusChecker,
 				5*time.Second,
+				metrics,
 			)
 
 			err := runner.processJob(context.Background(), tt.job)
@@ -193,27 +201,30 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 func TestVirusScannerJobRunner_ProcessStuckJobs(t *testing.T) {
 	now := time.Now()
 	stuckJob := &domain.UploadJob{
-		ID:        "stuck-job",
-		FileID:    "stuck-file",
-		Status:    domain.JobStatusVirusChecking,
-		CreatedAt: now.Add(-10 * time.Minute),
-		UpdatedAt: now.Add(-6 * time.Second),
+		ID:              "stuck-job",
+		CreatedByUserId: "test-user",
+		FileID:          "stuck-file",
+		Status:          domain.JobStatusVirusChecking,
+		CreatedAt:       now.Add(-10 * time.Minute),
+		UpdatedAt:       now.Add(-6 * time.Second),
 	}
 
 	pendingJob := &domain.UploadJob{
-		ID:        "pending-job",
-		FileID:    "pending-file",
-		Status:    domain.JobStatusVirusCheckPending,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:              "pending-job",
+		CreatedByUserId: "test-user",
+		FileID:          "pending-file",
+		Status:          domain.JobStatusVirusCheckPending,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	completedJob := &domain.UploadJob{
-		ID:        "completed-job",
-		FileID:    "completed-file",
-		Status:    domain.JobStatusCompleted,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:              "completed-job",
+		CreatedByUserId: "test-user",
+		FileID:          "completed-file",
+		Status:          domain.JobStatusCompleted,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	repo := newMockJobRepository()
@@ -233,15 +244,18 @@ func TestVirusScannerJobRunner_ProcessStuckJobs(t *testing.T) {
 		},
 	}
 
+	metrics := metrics.NewPrometheusMetrics()
+
 	runner := NewVirusScannerJobRunner(
 		repo,
 		fileStorage,
 		virusChecker,
 		5*time.Second,
+		metrics,
 	)
 
 	jobsChan := make(chan *domain.UploadJob, 10)
-	err := runner.processJobs(context.Background(), jobsChan)
+	err := runner.queuePendingAndStuckJobs(context.Background(), jobsChan)
 	require.NoError(t, err)
 
 	// Both jobs should be sent to the channel
