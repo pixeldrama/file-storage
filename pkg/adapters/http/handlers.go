@@ -188,15 +188,6 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 		return
 	}
 
-	if err := h.fileAuthorization.CreateFileAuthorization(fileID, req.FileType, req.LinkedResourceID, req.LinkedResourceType); err != nil {
-		job.Status = domain.JobStatusFailed
-		job.Error = "Failed to authorize file: " + err.Error()
-		job.UpdatedAt = time.Now()
-		h.jobRepo.Update(ctx, job)
-		c.JSON(http.StatusInternalServerError, ToAPIJob(job))
-		return
-	}
-
 	job.Status = domain.JobStatusVirusCheckPending
 	job.FileID = fileID
 	job.UpdatedAt = time.Now()

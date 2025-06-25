@@ -109,6 +109,8 @@ func main() {
 
 	virusScanner := jobrunner.NewVirusScannerJobRunner(
 		jobRepo,
+		fileInfoRepo,
+		fileAuthorization,
 		fileStorage,
 		virusChecker,
 		virusCheckTimeout,

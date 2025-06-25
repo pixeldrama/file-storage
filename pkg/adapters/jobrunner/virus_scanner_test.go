@@ -3,6 +3,7 @@ package jobrunner
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -38,6 +39,66 @@ func (m *mockVirusChecker) CheckFile(ctx context.Context, reader io.Reader) (boo
 
 type mockJobRepository struct {
 	jobs map[string]*domain.UploadJob
+}
+
+type mockMetricsCollector struct{}
+
+func (m *mockMetricsCollector) RecordUploadDuration(status string, duration time.Duration)     {}
+func (m *mockMetricsCollector) RecordUploadSize(size int64)                                    {}
+func (m *mockMetricsCollector) RecordVirusCheckDuration(status string, duration time.Duration) {}
+
+type mockFileInfoRepository struct {
+	fileInfos map[string]*domain.FileInfo
+}
+
+func newMockFileInfoRepository() *mockFileInfoRepository {
+	return &mockFileInfoRepository{
+		fileInfos: make(map[string]*domain.FileInfo),
+	}
+}
+
+func (m *mockFileInfoRepository) Create(ctx context.Context, fileInfo *domain.FileInfo) error {
+	m.fileInfos[fileInfo.ID] = fileInfo
+	return nil
+}
+
+func (m *mockFileInfoRepository) Get(ctx context.Context, fileID string) (*domain.FileInfo, error) {
+	if fileInfo, exists := m.fileInfos[fileID]; exists {
+		return fileInfo, nil
+	}
+	return nil, fmt.Errorf("file info not found")
+}
+
+func (m *mockFileInfoRepository) Update(ctx context.Context, fileInfo *domain.FileInfo) error {
+	m.fileInfos[fileInfo.ID] = fileInfo
+	return nil
+}
+
+func (m *mockFileInfoRepository) Delete(ctx context.Context, fileID string) error {
+	delete(m.fileInfos, fileID)
+	return nil
+}
+
+type mockFileAuthorization struct{}
+
+func (m *mockFileAuthorization) CanUploadFile(userID, fileType, linkedResourceType, linkedResourceID string) (bool, error) {
+	return true, nil
+}
+
+func (m *mockFileAuthorization) CanReadFile(userID, fileID string) (bool, error) {
+	return true, nil
+}
+
+func (m *mockFileAuthorization) CanDeleteFile(userID, fileID string) (bool, error) {
+	return true, nil
+}
+
+func (m *mockFileAuthorization) CreateFileAuthorization(fileID, fileType, linkedResourceID, linkedResourceType string) error {
+	return nil
+}
+
+func (m *mockFileAuthorization) RemoveFileAuthorization(fileID, fileType, linkedResourceID, linkedResourceType string) error {
+	return nil
 }
 
 func newMockJobRepository() *mockJobRepository {
@@ -157,6 +218,18 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 			repo := newMockJobRepository()
 			require.NoError(t, repo.Create(context.Background(), tt.job))
 
+			fileInfoRepo := newMockFileInfoRepository()
+			fileInfo := &domain.FileInfo{
+				ID:                 tt.job.FileID,
+				Filename:           "test-file.txt",
+				FileType:           "text/plain",
+				LinkedResourceType: "test",
+				LinkedResourceID:   "test-id",
+				CreatedAt:          time.Now(),
+				UpdatedAt:          time.Now(),
+			}
+			require.NoError(t, fileInfoRepo.Create(context.Background(), fileInfo))
+
 			fileStorage := &mockFileStorage{
 				downloadFunc: func(ctx context.Context, fileID string) (io.ReadCloser, error) {
 					if tt.downloadErr != nil {
@@ -175,9 +248,14 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 				},
 			}
 
-			metrics := &mockMetrics{}
+			metrics := &mockMetricsCollector{}
+
+			fileAuthorization := &mockFileAuthorization{}
+
 			runner := NewVirusScannerJobRunner(
 				repo,
+				fileInfoRepo,
+				fileAuthorization,
 				fileStorage,
 				virusChecker,
 				5*time.Second,
@@ -248,9 +326,14 @@ func TestVirusScannerJobRunner_ProcessStuckJobs(t *testing.T) {
 		},
 	}
 
-	metrics := &mockMetrics{}
+	metrics := &mockMetricsCollector{}
+	fileInfoRepo := newMockFileInfoRepository()
+	fileAuthorization := &mockFileAuthorization{}
+
 	runner := NewVirusScannerJobRunner(
 		repo,
+		fileInfoRepo,
+		fileAuthorization,
 		fileStorage,
 		virusChecker,
 		5*time.Second,

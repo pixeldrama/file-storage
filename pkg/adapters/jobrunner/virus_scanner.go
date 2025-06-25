@@ -16,28 +16,34 @@ const (
 )
 
 type VirusScannerJobRunner struct {
-	jobRepo         domain.UploadJobRepository
-	fileStorage     domain.FileStorage
-	virusChecker    domain.VirusChecker
-	workerCount     int
-	stuckJobTimeout time.Duration
-	metrics         domain.MetricsCollector
+	jobRepo           domain.UploadJobRepository
+	fileInfoRepo      domain.FileInfoRepository
+	fileAuthorization domain.FileAuthorization
+	fileStorage       domain.FileStorage
+	virusChecker      domain.VirusChecker
+	workerCount       int
+	stuckJobTimeout   time.Duration
+	metrics           domain.MetricsCollector
 }
 
 func NewVirusScannerJobRunner(
 	jobRepo domain.UploadJobRepository,
+	fileInfoRepo domain.FileInfoRepository,
+	fileAuthorization domain.FileAuthorization,
 	fileStorage domain.FileStorage,
 	virusChecker domain.VirusChecker,
 	stuckJobTimeout time.Duration,
 	metrics domain.MetricsCollector,
 ) *VirusScannerJobRunner {
 	return &VirusScannerJobRunner{
-		jobRepo:         jobRepo,
-		fileStorage:     fileStorage,
-		virusChecker:    virusChecker,
-		workerCount:     defaultWorkerCount,
-		stuckJobTimeout: stuckJobTimeout,
-		metrics:         metrics,
+		jobRepo:           jobRepo,
+		fileInfoRepo:      fileInfoRepo,
+		fileAuthorization: fileAuthorization,
+		fileStorage:       fileStorage,
+		virusChecker:      virusChecker,
+		workerCount:       defaultWorkerCount,
+		stuckJobTimeout:   stuckJobTimeout,
+		metrics:           metrics,
 	}
 }
 
@@ -135,6 +141,17 @@ func (r *VirusScannerJobRunner) processJob(ctx context.Context, job *domain.Uplo
 	if !isClean {
 		r.metrics.RecordVirusCheckDuration("virus_detected", time.Since(startTime))
 		return r.updateJobWithError(ctx, job, fmt.Errorf("file contains malware"))
+	}
+
+	fileInfo, err := r.fileInfoRepo.Get(ctx, job.FileID)
+	if err != nil {
+		r.metrics.RecordVirusCheckDuration("error", time.Since(startTime))
+		return r.updateJobWithError(ctx, job, fmt.Errorf("failed to get file info: %w", err))
+	}
+
+	if err := r.fileAuthorization.CreateFileAuthorization(job.FileID, fileInfo.FileType, fileInfo.LinkedResourceID, fileInfo.LinkedResourceType); err != nil {
+		r.metrics.RecordVirusCheckDuration("error", time.Since(startTime))
+		return r.updateJobWithError(ctx, job, fmt.Errorf("failed to create file authorization: %w", err))
 	}
 
 	job.Status = domain.JobStatusCompleted
