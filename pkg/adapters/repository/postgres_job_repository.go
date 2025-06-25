@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"file-storage-go/pkg/domain"
@@ -66,13 +67,14 @@ func NewPostgresJobRepo(connStr string) (*PostgresJobRepo, error) {
 }
 
 func (r *PostgresJobRepo) Create(ctx context.Context, job *domain.UploadJob) error {
+	fileID := r.stringToNull(job.FileID)
 	_, err := r.pool.Exec(ctx, createJobQuery,
 		job.ID,
 		job.CreatedByUserId,
 		job.Status,
 		job.CreatedAt,
 		job.UpdatedAt,
-		job.FileID,
+		fileID,
 		job.Error,
 	)
 	if err != nil {
@@ -83,13 +85,14 @@ func (r *PostgresJobRepo) Create(ctx context.Context, job *domain.UploadJob) err
 
 func (r *PostgresJobRepo) Get(ctx context.Context, jobID string) (*domain.UploadJob, error) {
 	job := &domain.UploadJob{}
+	var fileID sql.NullString
 	err := r.pool.QueryRow(ctx, getJobQuery, jobID).Scan(
 		&job.ID,
 		&job.CreatedByUserId,
 		&job.Status,
 		&job.CreatedAt,
 		&job.UpdatedAt,
-		&job.FileID,
+		&fileID,
 		&job.Error,
 	)
 	if err == pgx.ErrNoRows {
@@ -98,15 +101,17 @@ func (r *PostgresJobRepo) Get(ctx context.Context, jobID string) (*domain.Upload
 	if err != nil {
 		return nil, fmt.Errorf("failed to get upload job: %w", err)
 	}
+	job.FileID = r.nullToString(fileID)
 	return job, nil
 }
 
 func (r *PostgresJobRepo) Update(ctx context.Context, job *domain.UploadJob) error {
+	fileID := r.stringToNull(job.FileID)
 	result, err := r.pool.Exec(ctx, updateJobQuery,
 		job.CreatedByUserId,
 		job.Status,
 		job.UpdatedAt,
-		job.FileID,
+		fileID,
 		job.Error,
 		job.ID,
 	)
@@ -123,13 +128,14 @@ func (r *PostgresJobRepo) Update(ctx context.Context, job *domain.UploadJob) err
 
 func (r *PostgresJobRepo) GetByFileID(ctx context.Context, fileID string) (*domain.UploadJob, error) {
 	job := &domain.UploadJob{}
+	var dbFileID sql.NullString
 	err := r.pool.QueryRow(ctx, getJobByFileIDQuery, fileID).Scan(
 		&job.ID,
 		&job.CreatedByUserId,
 		&job.Status,
 		&job.CreatedAt,
 		&job.UpdatedAt,
-		&job.FileID,
+		&dbFileID,
 		&job.Error,
 	)
 	if err == pgx.ErrNoRows {
@@ -138,6 +144,7 @@ func (r *PostgresJobRepo) GetByFileID(ctx context.Context, fileID string) (*doma
 	if err != nil {
 		return nil, fmt.Errorf("failed to get upload job by file ID: %w", err)
 	}
+	job.FileID = r.nullToString(dbFileID)
 	return job, nil
 }
 
@@ -151,18 +158,20 @@ func (r *PostgresJobRepo) GetByStatus(ctx context.Context, status domain.JobStat
 	var jobs []*domain.UploadJob
 	for rows.Next() {
 		job := &domain.UploadJob{}
+		var fileID sql.NullString
 		err := rows.Scan(
 			&job.ID,
 			&job.CreatedByUserId,
 			&job.Status,
 			&job.CreatedAt,
 			&job.UpdatedAt,
-			&job.FileID,
+			&fileID,
 			&job.Error,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan job: %w", err)
 		}
+		job.FileID = r.nullToString(fileID)
 		jobs = append(jobs, job)
 	}
 
@@ -171,6 +180,20 @@ func (r *PostgresJobRepo) GetByStatus(ctx context.Context, status domain.JobStat
 	}
 
 	return jobs, nil
+}
+
+func (r *PostgresJobRepo) stringToNull(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{Valid: false}
+	}
+	return sql.NullString{String: s, Valid: true}
+}
+
+func (r *PostgresJobRepo) nullToString(ns sql.NullString) string {
+	if !ns.Valid {
+		return ""
+	}
+	return ns.String
 }
 
 func (r *PostgresJobRepo) Close() error {
