@@ -137,6 +137,11 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 		return
 	}
 
+	if job.Status != domain.JobStatusUploading {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Job is not in uploading status"})
+		return
+	}
+
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
 		job.Status = domain.JobStatusFailed
