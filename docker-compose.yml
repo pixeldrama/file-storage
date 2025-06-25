@@ -24,6 +24,7 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - USE_IN_MEMORY_REPO=false
+      - LOG_FORMAT=ecs
     depends_on:
       vault-init:
         condition: service_completed_successfully
