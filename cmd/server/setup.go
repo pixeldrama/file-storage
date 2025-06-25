@@ -4,10 +4,11 @@ import (
 	"log/slog"
 	"net/http"
 
-	handlers "github.com/benjamin/file-storage-go/pkg/adapters/http"
-	"github.com/benjamin/file-storage-go/pkg/auth"
-	"github.com/benjamin/file-storage-go/pkg/domain"
-	"github.com/benjamin/file-storage-go/pkg/middleware"
+	handlers "file-storage-go/pkg/adapters/http"
+	"file-storage-go/pkg/auth"
+	"file-storage-go/pkg/domain"
+	"file-storage-go/pkg/middleware"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )

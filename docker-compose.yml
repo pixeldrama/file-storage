@@ -17,7 +17,8 @@ services:
       - KEYCLOAK_URL=http://keycloak:8080/realms/file-storage
       - KEYCLOAK_CLIENT_ID=file-storage
       - VAULT_ADDRESS=http://vault:8200
-      - VAULT_TOKEN=dev-token
+      - VAULT_ROLE_ID=test-role-id
+      - VAULT_SECRET_ID=test-secret-id
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_NAME=file_storage
@@ -43,6 +44,8 @@ services:
       dockerfile: Dockerfile.test-api
     environment:
       - APP_URL=http://app:8080
+      - VAULT_ROLE_ID=test-role-id
+      - VAULT_SECRET_ID=test-secret-id
     depends_on:
       app:
         condition: service_started
@@ -102,7 +105,7 @@ services:
      - BLOB_STORAGE_URL=http://azurite:10000/devstoreaccount1
      - CONTAINER_NAME=files
     command: >
-     /bin/sh -c "apk add --no-cache bash curl dos2unix &&
+     /bin/sh -c "apk add --no-cache bash curl dos2unix jq &&
         dos2unix /scripts/init-vault.sh &&
         bash /scripts/init-vault.sh"
 
@@ -143,22 +146,26 @@ services:
       start_period: 10s
 
   keycloak:
-    image: quay.io/keycloak/keycloak:24.0.1
+    image: quay.io/keycloak/keycloak:26.2.4
     ports:
       - "8081:8080"
     environment:
       - KC_HOSTNAME=localhost
       - KC_HOSTNAME_PORT=8081
       - KC_HEALTH_ENABLED=true
-      - KEYCLOAK_ADMIN=admin
-      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
     command: start-dev
     volumes:
       - ./scripts:/scripts
 
   curl:
-    image: curlimages/curl:latest
-    entrypoint: ["curl"]
+    build:
+      context: .
+      dockerfile: Dockerfile.curl
+    volumes:
+      - ./scripts:/scripts
+    entrypoint: ["/bin/sh", "-c"]
 
   keycloak-init:
     image: alpine:latest

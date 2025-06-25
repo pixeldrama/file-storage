@@ -1,4 +1,4 @@
-module github.com/benjamin/file-storage-go
+module file-storage-go
 
 go 1.24.1
 

@@ -1,9 +1,12 @@
 package secrets
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
 
-	"github.com/hashicorp/vault/api"
+	"file-storage-go/pkg/adapters/vault"
 )
 
 const (
@@ -18,48 +21,70 @@ type StorageCredentials struct {
 }
 
 type VaultService struct {
-	client *api.Client
+	client *vault.VaultClient
 }
 
-func NewVaultService(address, token string) (*VaultService, error) {
-	config := api.DefaultConfig()
-	config.Address = address
+func NewVaultService(address, roleID, secretID string) (*VaultService, error) {
+	token, err := getAppRoleToken(address, roleID, secretID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get app role token: %w", err)
+	}
 
-	client, err := api.NewClient(config)
+	client, err := vault.NewVaultClient(address, token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create vault client: %w", err)
 	}
-
-	client.SetToken(token)
 
 	return &VaultService{
 		client: client,
 	}, nil
 }
 
-func (v *VaultService) StoreStorageCredentials(creds StorageCredentials) error {
-	data := map[string]interface{}{
-		"data": map[string]interface{}{
-			"credentials": creds,
-		},
+func getAppRoleToken(address, roleID, secretID string) (string, error) {
+	data := map[string]string{
+		"role_id":   roleID,
+		"secret_id": secretID,
 	}
-	_, err := v.client.Logical().Write(StorageCredsPath, data)
+
+	jsonData, err := json.Marshal(data)
 	if err != nil {
-		return fmt.Errorf("failed to store storage credentials: %w", err)
+		return "", fmt.Errorf("failed to marshal auth data: %w", err)
 	}
-	return nil
+
+	resp, err := http.Post(
+		fmt.Sprintf("%s/v1/auth/approle/login", strings.TrimRight(address, "/")),
+		"application/json",
+		strings.NewReader(string(jsonData)),
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to authenticate with app role: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to authenticate with app role: status code %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Auth struct {
+			ClientToken string `json:"client_token"`
+		} `json:"auth"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to decode auth response: %w", err)
+	}
+
+	return result.Auth.ClientToken, nil
 }
 
 func (v *VaultService) GetStorageCredentials() (*StorageCredentials, error) {
-	secret, err := v.client.Logical().Read(StorageCredsPath)
+	secret, err := v.client.GetSecret(StorageCredsPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get storage credentials: %w", err)
 	}
-	if secret == nil {
-		return nil, fmt.Errorf("no storage credentials found in vault at path: %s", StorageCredsPath)
-	}
 
-	data, ok := secret.Data["data"].(map[string]interface{})
+	data, ok := secret["data"].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("invalid secret data format")
 	}
