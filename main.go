@@ -120,12 +120,12 @@ func main() {
 	go virusScanner.Start(context.Background())
 
 	serverConfig := server.ServerConfig{
-		FileStorage:       fileStorage,
-		JobRepo:           jobRepo,
-		FileInfoRepo:      fileInfoRepo,
-		FileAuthorization: fileAuthorization,
-		KeycloakURL:       cfg.KeycloakURL,
-		KeycloakClientID:  cfg.KeycloakClientID,
+		FileStorage:          fileStorage,
+		JobRepo:              jobRepo,
+		FileInfoRepo:         fileInfoRepo,
+		FileAuthorization:    fileAuthorization,
+		KeycloakURL:          cfg.KeycloakURL,
+		KeycloakClientID:     cfg.KeycloakClientID,
 		Logger:           logger,
 		UseMockAuthorization: cfg.UseMockAuthorization,
 	}
