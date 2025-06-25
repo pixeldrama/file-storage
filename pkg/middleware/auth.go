@@ -10,7 +10,7 @@ import (
 )
 
 type AuthMiddlewareConfig struct {
-	JWTVerifier *auth.JWTVerifier
+	JWTVerifier auth.JWTVerifierInterface
 }
 
 func NewAuthMiddleware(config AuthMiddlewareConfig) gin.HandlerFunc {

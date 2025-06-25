@@ -125,6 +125,7 @@ func main() {
 		KeycloakURL:       cfg.KeycloakURL,
 		KeycloakClientID:  cfg.KeycloakClientID,
 		Logger:           logger,
+		UseMockAuthorization: cfg.UseMockAuthorization,
 	}
 
 	r := server.SetupRouter(serverConfig)

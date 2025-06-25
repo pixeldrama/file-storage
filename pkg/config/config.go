@@ -11,25 +11,26 @@ import (
 )
 
 type Config struct {
-	ServerPort          string `mapstructure:"SERVER_PORT"`
-	BlobStorageURL      string `mapstructure:"BLOB_STORAGE_URL"`
-	BlobAccountName     string `mapstructure:"BLOB_ACCOUNT_NAME"`
-	ContainerName       string `mapstructure:"CONTAINER_NAME"`
-	StorageKey          string `mapstructure:"STORAGE_KEY"`
-	VaultAddress        string `mapstructure:"VAULT_ADDRESS"`
+	ServerPort           string `mapstructure:"SERVER_PORT"`
+	BlobStorageURL       string `mapstructure:"BLOB_STORAGE_URL"`
+	BlobAccountName      string `mapstructure:"BLOB_ACCOUNT_NAME"`
+	ContainerName        string `mapstructure:"CONTAINER_NAME"`
+	StorageKey           string `mapstructure:"STORAGE_KEY"`
+	VaultAddress         string `mapstructure:"VAULT_ADDRESS"`
 	VaultRoleID         string `mapstructure:"VAULT_ROLE_ID"`
 	VaultSecretID       string `mapstructure:"VAULT_SECRET_ID"`
-	DBHost              string `mapstructure:"DB_HOST"`
-	DBPort              string `mapstructure:"DB_PORT"`
-	DBName              string `mapstructure:"DB_NAME"`
-	DBUser              string `mapstructure:"DB_USER"`
-	DBPassword          string `mapstructure:"DB_PASSWORD"`
-	KeycloakURL         string `mapstructure:"KEYCLOAK_URL"`
-	KeycloakClientID    string `mapstructure:"KEYCLOAK_CLIENT_ID"`
-	VirusCheckTimeout   string `mapstructure:"VIRUS_CHECK_TIMEOUT"`
-	UseMockVirusChecker bool   `mapstructure:"USE_MOCK_VIRUS_CHECKER"`
-	VirusCheckerURL     string `mapstructure:"VIRUS_CHECKER_URL"`
-	UseInMemoryRepo     bool   `mapstructure:"USE_IN_MEMORY_REPO"`
+	DBHost               string `mapstructure:"DB_HOST"`
+	DBPort               string `mapstructure:"DB_PORT"`
+	DBName               string `mapstructure:"DB_NAME"`
+	DBUser               string `mapstructure:"DB_USER"`
+	DBPassword           string `mapstructure:"DB_PASSWORD"`
+	KeycloakURL          string `mapstructure:"KEYCLOAK_URL"`
+	KeycloakClientID     string `mapstructure:"KEYCLOAK_CLIENT_ID"`
+	VirusCheckTimeout    string `mapstructure:"VIRUS_CHECK_TIMEOUT"`
+	UseMockVirusChecker  bool   `mapstructure:"USE_MOCK_VIRUS_CHECKER"`
+	VirusCheckerURL      string `mapstructure:"VIRUS_CHECKER_URL"`
+	UseInMemoryRepo      bool   `mapstructure:"USE_IN_MEMORY_REPO"`
+	UseMockAuthorization bool   `mapstructure:"USE_MOCK_AUTHORIZATION"`
 }
 
 func (c *Config) GetDBConnString() string {
@@ -59,6 +60,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("USE_MOCK_VIRUS_CHECKER", false)
 	viper.SetDefault("VIRUS_CHECKER_URL", "http://localhost:8082")
 	viper.SetDefault("USE_IN_MEMORY_REPO", false)
+	viper.SetDefault("USE_MOCK_JWT_VERIFIER", false)
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -67,24 +69,25 @@ func LoadConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		ServerPort:          viper.GetString("SERVER_PORT"),
-		BlobStorageURL:      viper.GetString("BLOB_STORAGE_URL"),
-		BlobAccountName:     viper.GetString("BLOB_ACCOUNT_NAME"),
-		ContainerName:       viper.GetString("CONTAINER_NAME"),
-		VaultAddress:        viper.GetString("VAULT_ADDRESS"),
+		ServerPort:           viper.GetString("SERVER_PORT"),
+		BlobStorageURL:       viper.GetString("BLOB_STORAGE_URL"),
+		BlobAccountName:      viper.GetString("BLOB_ACCOUNT_NAME"),
+		ContainerName:        viper.GetString("CONTAINER_NAME"),
+		VaultAddress:         viper.GetString("VAULT_ADDRESS"),
 		VaultRoleID:         viper.GetString("VAULT_ROLE_ID"),
 		VaultSecretID:       viper.GetString("VAULT_SECRET_ID"),
-		DBHost:              viper.GetString("DB_HOST"),
-		DBPort:              viper.GetString("DB_PORT"),
-		DBName:              viper.GetString("DB_NAME"),
-		DBUser:              viper.GetString("DB_USER"),
-		DBPassword:          viper.GetString("DB_PASSWORD"),
-		KeycloakURL:         viper.GetString("KEYCLOAK_URL"),
-		KeycloakClientID:    viper.GetString("KEYCLOAK_CLIENT_ID"),
-		VirusCheckTimeout:   viper.GetString("VIRUS_CHECK_TIMEOUT"),
-		UseMockVirusChecker: viper.GetBool("USE_MOCK_VIRUS_CHECKER"),
-		VirusCheckerURL:     viper.GetString("VIRUS_CHECKER_URL"),
-		UseInMemoryRepo:     viper.GetBool("USE_IN_MEMORY_REPO"),
+		DBHost:               viper.GetString("DB_HOST"),
+		DBPort:               viper.GetString("DB_PORT"),
+		DBName:               viper.GetString("DB_NAME"),
+		DBUser:               viper.GetString("DB_USER"),
+		DBPassword:           viper.GetString("DB_PASSWORD"),
+		KeycloakURL:          viper.GetString("KEYCLOAK_URL"),
+		KeycloakClientID:     viper.GetString("KEYCLOAK_CLIENT_ID"),
+		VirusCheckTimeout:    viper.GetString("VIRUS_CHECK_TIMEOUT"),
+		UseMockVirusChecker:  viper.GetBool("USE_MOCK_VIRUS_CHECKER"),
+		VirusCheckerURL:      viper.GetString("VIRUS_CHECKER_URL"),
+		UseInMemoryRepo:      viper.GetBool("USE_IN_MEMORY_REPO"),
+		UseMockAuthorization: viper.GetBool("USE_MOCK_AUTHORIZATION"),
 	}
 
 	if os.Getenv("SKIP_STORAGE_VALIDATION") == "true" {

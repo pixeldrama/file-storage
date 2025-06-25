@@ -14,8 +14,7 @@ services:
       - SERVER_PORT=8080
       - USE_MOCK_STORAGE=false
       - USE_MOCK_VIRUS_CHECKER=true
-      - KEYCLOAK_URL=http://keycloak:8080/realms/file-storage
-      - KEYCLOAK_CLIENT_ID=file-storage
+      - USE_MOCK_AUTHORIZATION=true
       - VAULT_ADDRESS=http://vault:8200
       - VAULT_ROLE_ID=test-role-id
       - VAULT_SECRET_ID=test-secret-id
@@ -30,8 +29,6 @@ services:
       vault-init:
         condition: service_completed_successfully
       db-init:
-        condition: service_completed_successfully
-      keycloak-init:
         condition: service_completed_successfully
       azurite:
         condition: service_started
@@ -48,8 +45,6 @@ services:
       - VAULT_SECRET_ID=test-secret-id
     depends_on:
       app:
-        condition: service_started
-      keycloak:
         condition: service_started
       azurite-init:
         condition: service_completed_successfully
@@ -145,20 +140,6 @@ services:
       retries: 5
       start_period: 10s
 
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.2.4
-    ports:
-      - "8081:8080"
-    environment:
-      - KC_HOSTNAME=localhost
-      - KC_HOSTNAME_PORT=8081
-      - KC_HEALTH_ENABLED=true
-      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
-      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
-    command: start-dev
-    volumes:
-      - ./scripts:/scripts
-
   curl:
     build:
       context: .
@@ -167,14 +148,6 @@ services:
       - ./scripts:/scripts
     entrypoint: ["/bin/sh", "-c"]
 
-  keycloak-init:
-    image: alpine:latest
-    depends_on:
-      keycloak:
-        condition: service_started
-    volumes:
-      - ./scripts:/scripts
-    command: ["sh", "-c", "apk add --no-cache bash curl jq && chmod +x /scripts/init-keycloak.sh && /scripts/init-keycloak.sh"]
 
 volumes:
   azurite_data:

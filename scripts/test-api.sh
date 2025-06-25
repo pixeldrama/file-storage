@@ -9,24 +9,8 @@ KEYCLOAK_URL="http://keycloak:8080"
 REALM="file-storage"
 CLIENT_ID="file-storage"
 CLIENT_SECRET="test-secret" # This matches the secret in setup-keycloak.sh
+JWT_TOKEN="mock-token"
 
-get_keycloak_token() {
-    local token_response=$(curl -s -X POST "${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token" \
-        -H "Content-Type: application/x-www-form-urlencoded" \
-        -d "grant_type=client_credentials" \
-        -d "client_id=${CLIENT_ID}" \
-        -d "client_secret=${CLIENT_SECRET}")
-    
-    local token=$(echo "$token_response" | jq -r '.access_token')
-    
-    if [ -z "$token" ] || [ "$token" == "null" ]; then
-        echo "Error: Failed to obtain token from Keycloak"
-        echo "Response: $token_response"
-        exit 1
-    fi
-    
-    echo "$token"
-}
 
 if ! command -v jq &> /dev/null
 then
@@ -35,14 +19,6 @@ then
     echo "On macOS with Homebrew: brew install jq"
     exit 1
 fi
-
-echo "Obtaining JWT token from Keycloak..."
-JWT_TOKEN=$(get_keycloak_token)
-if [ $? -ne 0 ]; then
-    echo "Failed to obtain JWT token. Exiting."
-    exit 1
-fi
-echo "Successfully obtained JWT token"
 
 # Create test files
 if [ ! -f "$CLEAN_TEST_FILE" ]; then
