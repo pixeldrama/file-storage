@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type UploadJobReqest struct {
+type UploadJobRequest struct {
 	Filename           string `json:"filename" binding:"required"`
 	FileType           string `json:"fileType" binding:"required"`
 	LinkedResourceType string `json:"linkedResourceType" binding:"required"`
@@ -41,12 +41,45 @@ func (h *Handlers) CreateUploadJob(c *gin.Context) {
 		return
 	}
 
+	var req UploadJobRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	authorized, err := h.fileAuthorization.CanUploadFile(userID, req.FileType, req.LinkedResourceType, req.LinkedResourceID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authorization check failed"})
+		return
+	}
+	if !authorized {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Upload not authorized"})
+		return
+	}
+
 	jobID := uuid.New().String()
+	fileID := uuid.New().String()
 	now := time.Now()
+
+	fileInfo := &domain.FileInfo{
+		ID:                 fileID,
+		Filename:           req.Filename,
+		FileType:           req.FileType,
+		LinkedResourceType: req.LinkedResourceType,
+		LinkedResourceID:   req.LinkedResourceID,
+		CreatedAt:          now,
+		UpdatedAt:          now,
+	}
+
+	if err := h.fileInfoRepo.Create(c.Request.Context(), fileInfo); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create file record: " + err.Error()})
+		return
+	}
 
 	job := &domain.UploadJob{
 		ID:              jobID,
 		CreatedByUserId: userID,
+		FileID:          fileID,
 		Status:          domain.JobStatusUploading,
 		CreatedAt:       now,
 		UpdatedAt:       now,
@@ -88,7 +121,6 @@ func (h *Handlers) GetUploadJobStatus(c *gin.Context) {
 func (h *Handlers) UploadFile(c *gin.Context) {
 	ctx := c.Request.Context()
 	jobID := c.Param("jobId")
-	userID := c.GetString("userId")
 
 	job, err := h.jobRepo.Get(ctx, jobID)
 	if err != nil {
@@ -102,34 +134,6 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 
 	if err := h.validateUserAccess(c, job); err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-		return
-	}
-
-	var req UploadJobReqest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		job.Status = domain.JobStatusFailed
-		job.Error = "Invalid request format"
-		job.UpdatedAt = time.Now()
-		h.jobRepo.Update(ctx, job)
-		c.JSON(http.StatusBadRequest, ToAPIJob(job))
-		return
-	}
-
-	authorized, err := h.fileAuthorization.CanUploadFile(userID, req.FileType, req.LinkedResourceType, req.LinkedResourceID)
-	if err != nil {
-		job.Status = domain.JobStatusFailed
-		job.Error = "Authorization check failed"
-		job.UpdatedAt = time.Now()
-		h.jobRepo.Update(ctx, job)
-		c.JSON(http.StatusInternalServerError, ToAPIJob(job))
-		return
-	}
-	if !authorized {
-		job.Status = domain.JobStatusFailed
-		job.Error = "Upload not authorized"
-		job.UpdatedAt = time.Now()
-		h.jobRepo.Update(ctx, job)
-		c.JSON(http.StatusForbidden, ToAPIJob(job))
 		return
 	}
 
@@ -158,8 +162,7 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 	job.UpdatedAt = time.Now()
 	h.jobRepo.Update(ctx, job)
 
-	fileID := uuid.New().String()
-	err = h.fileStorage.Upload(ctx, fileID, src)
+	err = h.fileStorage.Upload(ctx, job.FileID, src)
 	if err != nil {
 		job.Status = domain.JobStatusFailed
 		job.Error = err.Error()
@@ -169,27 +172,7 @@ func (h *Handlers) UploadFile(c *gin.Context) {
 		return
 	}
 
-	fileInfo := &domain.FileInfo{
-		ID:                 fileID,
-		Filename:           req.Filename,
-		FileType:           req.FileType,
-		LinkedResourceType: req.LinkedResourceType,
-		LinkedResourceID:   req.LinkedResourceID,
-		CreatedAt:          time.Now(),
-		UpdatedAt:          time.Now(),
-	}
-
-	if err := h.fileInfoRepo.Create(ctx, fileInfo); err != nil {
-		job.Status = domain.JobStatusFailed
-		job.Error = "Failed to create file record: " + err.Error()
-		job.UpdatedAt = time.Now()
-		h.jobRepo.Update(ctx, job)
-		c.JSON(http.StatusInternalServerError, ToAPIJob(job))
-		return
-	}
-
 	job.Status = domain.JobStatusVirusCheckPending
-	job.FileID = fileID
 	job.UpdatedAt = time.Now()
 	h.jobRepo.Update(ctx, job)
 
@@ -311,6 +294,11 @@ func (h *Handlers) DeleteFile(c *gin.Context) {
 	if fileInfo != nil {
 		if err := h.fileAuthorization.RemoveFileAuthorization(fileInfo.ID, fileInfo.FileType, fileInfo.LinkedResourceID, fileInfo.LinkedResourceType); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove file authorization"})
+			return
+		}
+
+		if err := h.fileInfoRepo.Delete(ctx, fileID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete file info"})
 			return
 		}
 	}
