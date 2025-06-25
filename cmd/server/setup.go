@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log/slog"
 	"net/http"
 
 	handlers "file-storage-go/pkg/adapters/http"
@@ -17,12 +18,23 @@ type ServerConfig struct {
 	JobRepo          domain.UploadJobRepository
 	KeycloakURL      string
 	KeycloakClientID string
+	Logger           *slog.Logger
 }
 
 func SetupRouter(config ServerConfig) *gin.Engine {
 	h := handlers.NewHandlers(config.FileStorage, config.JobRepo)
 
-	r := gin.Default()
+	// Create a new Gin engine without any default middleware
+	r := gin.New()
+
+	// Use our custom ECS logger middleware
+	r.Use(middleware.GinLoggerMiddleware(config.Logger))
+
+	// Use Gin's recovery middleware to handle panics
+	r.Use(gin.Recovery())
+
+	// Disable Gin's debug output
+	gin.SetMode(gin.ReleaseMode)
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "up"})

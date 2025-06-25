@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"time"
 
@@ -14,16 +13,21 @@ import (
 	"file-storage-go/pkg/adapters/viruschecker"
 	"file-storage-go/pkg/config"
 	"file-storage-go/pkg/domain"
+	"file-storage-go/pkg/loginit"
 )
 
 func main() {
+	// Initialize the ECS logger
+	logger := loginit.InitLogger()
+
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		if os.Getenv("USE_MOCK_STORAGE") != "true" {
-			log.Fatalf("Failed to load config: %v", err)
+			logger.Error("Failed to load config", "error", err)
+			os.Exit(1)
 		}
 		if cfg == nil {
-			log.Println("Warning: Config loading failed, but USE_MOCK_STORAGE is true. Proceeding with potentially incomplete config for mocks.")
+			logger.Warn("Config loading failed, but USE_MOCK_STORAGE is true. Proceeding with potentially incomplete config for mocks.")
 			cfg = &config.Config{ServerPort: "8080"}
 		}
 	}
@@ -32,18 +36,19 @@ func main() {
 	var fileStorage domain.FileStorage
 
 	if os.Getenv("USE_MOCK_STORAGE") == "true" {
-		log.Println("INFO: Using MockStorage because USE_MOCK_STORAGE is set to true.")
+		logger.Info("Using MockStorage because USE_MOCK_STORAGE is set to true.")
 		fileStorage = storage.NewMockStorage()
 	} else {
-		log.Println("INFO: Using AzureBlobStorage.")
+		logger.Info("Using AzureBlobStorage.")
 		if cfg.BlobStorageURL == "" {
-			log.Fatalf("BLOB_STORAGE_URL is required when not using mock storage.")
+			logger.Error("BLOB_STORAGE_URL is required when not using mock storage.")
+			os.Exit(1)
 		}
 
 		var azureStorageErr error
 		accountNameForCreds := cfg.BlobAccountName
 		if accountNameForCreds == "" {
-			log.Println("Warning: BlobAccountName is not set. This is fine for Azurite if BlobStorageURL is the Azurite URL. For real Azure, ensure BlobAccountName is configured.")
+			logger.Warn("BlobAccountName is not set. This is fine for Azurite if BlobStorageURL is the Azurite URL. For real Azure, ensure BlobAccountName is configured.")
 			accountNameForCreds = cfg.BlobStorageURL
 		}
 
@@ -55,37 +60,41 @@ func main() {
 			metricsCollector,
 		)
 		if azureStorageErr != nil {
-			log.Fatalf("Failed to initialize AzureBlobStorage client: %v", azureStorageErr)
+			logger.Error("Failed to initialize AzureBlobStorage client", "error", azureStorageErr)
+			os.Exit(1)
 		}
 	}
 
 	var jobRepo domain.UploadJobRepository
 	if cfg.UseInMemoryRepo {
-		log.Println("INFO: Using InMemoryRepository because USE_IN_MEMORY_REPO is set to true.")
+		logger.Info("Using InMemoryRepository because USE_IN_MEMORY_REPO is set to true.")
 		jobRepo = repository.NewInMemoryRepository()
 	} else {
-		log.Println("INFO: Using PostgresRepository.")
+		logger.Info("Using PostgresRepository.")
 		jobRepo, err = repository.NewPostgresRepository(cfg.GetDBConnString())
 		if err != nil {
-			log.Fatalf("Failed to create postgres repository: %v", err)
+			logger.Error("Failed to create postgres repository", "error", err)
+			os.Exit(1)
 		}
 	}
 
 	var virusChecker domain.VirusChecker
 	if cfg.UseMockVirusChecker {
-		log.Println("INFO: Using MockVirusChecker because USE_MOCK_VIRUS_CHECKER is set to true.")
+		logger.Info("Using MockVirusChecker because USE_MOCK_VIRUS_CHECKER is set to true.")
 		virusChecker = viruschecker.NewMockVirusChecker()
 	} else {
-		log.Println("INFO: Using HTTPVirusChecker.")
+		logger.Info("Using HTTPVirusChecker.")
 		if cfg.VirusCheckerURL == "" {
-			log.Fatalf("VIRUS_CHECKER_URL is required when not using mock virus checker")
+			logger.Error("VIRUS_CHECKER_URL is required when not using mock virus checker")
+			os.Exit(1)
 		}
 		virusChecker = viruschecker.NewHTTPVirusChecker(cfg.VirusCheckerURL)
 	}
 
 	virusCheckTimeout, err := time.ParseDuration(cfg.VirusCheckTimeout)
 	if err != nil {
-		log.Fatalf("Invalid VIRUS_CHECK_TIMEOUT format: %v", err)
+		logger.Error("Invalid VIRUS_CHECK_TIMEOUT format", "error", err)
+		os.Exit(1)
 	}
 
 	virusScanner := jobrunner.NewVirusScannerJobRunner(
@@ -103,12 +112,14 @@ func main() {
 		JobRepo:          jobRepo,
 		KeycloakURL:      cfg.KeycloakURL,
 		KeycloakClientID: cfg.KeycloakClientID,
+		Logger:           logger,
 	}
 
 	r := server.SetupRouter(serverConfig)
 
-	log.Printf("Starting server on port %s", cfg.ServerPort)
+	logger.Info("Starting server", "port", cfg.ServerPort)
 	if err := r.Run(":" + cfg.ServerPort); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		logger.Error("Failed to start server", "error", err)
+		os.Exit(1)
 	}
 }
