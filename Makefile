@@ -12,7 +12,6 @@ help:
 	@echo "  make vault-init     - Initializes Vault with storage credentials"
 	@echo "  make setup          - Runs all setup targets (azure, azurite, vault, db)"
 	@echo "  make migrate        - Runs database migrations"
-	@echo "  make setup-keycloak - Sets up Keycloak realm and client"
 	@echo "  make start-app      - Starts the main application"
 
 start:
@@ -54,17 +53,6 @@ migrate:
 	@echo "Running database migrations..."
 	docker-compose up db-init
 
-setup-keycloak:
-	@echo "Ensuring Keycloak is running..."
-	docker-compose up -d keycloak
-	@echo "Waiting for Keycloak to be ready..."
-	@until docker-compose run --rm curl "curl -s -f http://keycloak:8080/realms/master/.well-known/openid-configuration"; do \
-		echo "Waiting for Keycloak to become available..."; \
-		sleep 5; \
-	done
-	@echo "Setting up Keycloak realm and client..."
-	docker-compose run --rm -e KEYCLOAK_HOST=keycloak -e KEYCLOAK_PORT=8080 curl "sh /scripts/setup-keycloak.sh"
-
 start-app:
 	@echo "Starting main application..."
 	docker-compose up -d app
@@ -74,5 +62,5 @@ start-app:
 		sleep 1; \
 	done
 
-setup: setup-azure setup-azurite setup-vault migrate setup-keycloak start-app
+setup: setup-azure setup-azurite setup-vault migrate start-app
 	@echo "Setup complete!" 
