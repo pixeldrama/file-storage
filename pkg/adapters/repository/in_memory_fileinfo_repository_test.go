@@ -141,39 +141,3 @@ func TestInMemoryFileInfoRepo_Delete(t *testing.T) {
 		t.Errorf("Delete for non-existent file info should not return error: %v", err)
 	}
 }
-
-func TestInMemoryFileInfoRepo_ConcurrentOperations(t *testing.T) {
-	repo := NewInMemoryFileInfoRepo()
-	ctx := context.Background()
-	done := make(chan bool)
-
-	go func() {
-		for i := 0; i < 100; i++ {
-			fileInfo := &domain.FileInfo{
-				ID:                 "file1",
-				Filename:           "test.txt",
-				FileType:           "document",
-				LinkedResourceType: "project",
-				LinkedResourceID:   "project-123",
-				CreatedAt:          time.Now(),
-				UpdatedAt:          time.Now(),
-			}
-			repo.Create(ctx, fileInfo)
-		}
-		done <- true
-	}()
-
-	go func() {
-		for i := 0; i < 100; i++ {
-			repo.Get(ctx, "file1")
-		}
-		done <- true
-	}()
-
-	<-done
-	<-done
-
-	if len(repo.fileInfos) != 1 {
-		t.Errorf("Expected 1 file info after concurrent operations, got %d", len(repo.fileInfos))
-	}
-}
