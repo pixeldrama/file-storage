@@ -36,10 +36,6 @@ func NewHandlers(fileStorage domain.FileStorage, jobRepo domain.UploadJobReposit
 
 func (h *Handlers) CreateUploadJob(c *gin.Context) {
 	userID := c.GetString("userId")
-	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "No user ID found in context"})
-		return
-	}
 
 	var req CreateUploadJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -188,10 +184,6 @@ func (h *Handlers) GetFileInfo(c *gin.Context) {
 	ctx := c.Request.Context()
 	fileID := c.Param("fileId")
 	userID := c.GetString("userId")
-	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "No user ID found in context"})
-		return
-	}
 
 	authorized, err := h.fileAuthorization.CanReadFile(userID, fileID)
 	if err != nil {
@@ -220,10 +212,6 @@ func (h *Handlers) DownloadFile(c *gin.Context) {
 	ctx := c.Request.Context()
 	fileID := c.Param("fileId")
 	userID := c.GetString("userId")
-	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "No user ID found in context"})
-		return
-	}
 
 	authorized, err := h.fileAuthorization.CanReadFile(userID, fileID)
 	if err != nil {
@@ -260,10 +248,6 @@ func (h *Handlers) DeleteFile(c *gin.Context) {
 	ctx := c.Request.Context()
 	fileID := c.Param("fileId")
 	userID := c.GetString("userId")
-	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "No user ID found in context"})
-		return
-	}
 
 	authorized, err := h.fileAuthorization.CanDeleteFile(userID, fileID)
 	if err != nil {
@@ -319,10 +303,6 @@ func (h *Handlers) DeleteFile(c *gin.Context) {
 
 func (h *Handlers) validateUserAccess(c *gin.Context, job *domain.UploadJob) error {
 	userID := c.GetString("userId")
-
-	if userID == "" {
-		return fmt.Errorf("no user ID found in context")
-	}
 
 	if job.CreatedByUserId != userID {
 		return fmt.Errorf("access denied: job belongs to different user")
