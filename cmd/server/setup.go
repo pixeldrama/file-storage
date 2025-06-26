@@ -50,7 +50,6 @@ func SetupRouter(config ServerConfig) *gin.Engine {
 		config.Logger.Info("Using MockJWTVerifier because UseMockAuthorization is set to true.")
 		jwtVerifier = auth.NewMockJWTVerifier()
 	} else {
-		config.Logger.Info("Using KeycloakJWTVerifier")
 		jwtVerifier = auth.NewJWTVerifier(auth.KeycloakConfig{
 			RealmURL: config.KeycloakURL,
 			ClientID: config.KeycloakClientID,

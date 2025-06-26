@@ -39,7 +39,6 @@ func main() {
 		logger.Info("Using MockStorage because USE_MOCK_STORAGE is set to true.")
 		fileStorage = storage.NewMockStorage()
 	} else {
-		logger.Info("Using AzureBlobStorage.")
 		if cfg.BlobStorageURL == "" {
 			logger.Error("BLOB_STORAGE_URL is required when not using mock storage.")
 			os.Exit(1)
@@ -73,27 +72,23 @@ func main() {
 		logger.Info("Using InMemoryFileInfoRepo because USE_IN_MEMORY_REPO is set to true.")
 		fileInfoRepo = repository.NewInMemoryFileInfoRepo()
 	} else {
-		logger.Info("Using PostgresJobRepo for jobs.")
 		jobRepo, err = repository.NewPostgresJobRepo(cfg.GetDBConnString())
 		if err != nil {
 			logger.Error("Failed to create postgres job repository", "error", err)
 		}
-		logger.Info("Using PostgresFileInfoRepo for file info.")
 		fileInfoRepo, err = repository.NewPostgresFileInfoRepo(cfg.GetDBConnString())
 		if err != nil {
 			logger.Error("Failed to create postgres file info repository", "error", err)
 		}
 	}
 
-	var fileAuthorization domain.FileAuthorization
-	fileAuthorization = repository.NewMockFileAuthorization()
+	fileAuthorization := repository.NewMockFileAuthorization()
 
 	var virusChecker domain.VirusChecker
 	if cfg.UseMockVirusChecker {
 		logger.Info("Using MockVirusChecker because USE_MOCK_VIRUS_CHECKER is set to true.")
 		virusChecker = viruschecker.NewMockVirusChecker()
 	} else {
-		logger.Info("Using HTTPVirusChecker.")
 		if cfg.VirusCheckerURL == "" {
 			logger.Error("VIRUS_CHECKER_URL is required when not using mock virus checker")
 			os.Exit(1)
@@ -126,7 +121,7 @@ func main() {
 		FileAuthorization:    fileAuthorization,
 		KeycloakURL:          cfg.KeycloakURL,
 		KeycloakClientID:     cfg.KeycloakClientID,
-		Logger:           logger,
+		Logger:               logger,
 		UseMockAuthorization: cfg.UseMockAuthorization,
 	}
 
