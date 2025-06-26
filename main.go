@@ -76,12 +76,12 @@ func main() {
 		logger.Info("Using PostgresJobRepo for jobs.")
 		jobRepo, err = repository.NewPostgresJobRepo(cfg.GetDBConnString())
 		if err != nil {
-			logger.Error("Failed to create postgres job repository: %v", err)
+			logger.Error("Failed to create postgres job repository", "error", err)
 		}
 		logger.Info("Using PostgresFileInfoRepo for file info.")
 		fileInfoRepo, err = repository.NewPostgresFileInfoRepo(cfg.GetDBConnString())
 		if err != nil {
-			logger.Error("Failed to create postgres file info repository: %v", err)
+			logger.Error("Failed to create postgres file info repository", "error", err)
 		}
 	}
 

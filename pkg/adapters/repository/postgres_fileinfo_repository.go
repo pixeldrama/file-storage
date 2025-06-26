@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/benjamin/file-storage-go/pkg/domain"
+	"file-storage-go/pkg/domain"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

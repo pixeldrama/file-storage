@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/benjamin/file-storage-go/pkg/domain"
+	"file-storage-go/pkg/domain"
 )
 
 func TestInMemoryFileInfoRepo_Create(t *testing.T) {
