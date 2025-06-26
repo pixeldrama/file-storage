@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type UploadJobRequest struct {
+type CreateUploadJobRequest struct {
 	Filename           string `json:"filename" binding:"required"`
 	FileType           string `json:"fileType" binding:"required"`
 	LinkedResourceType string `json:"linkedResourceType" binding:"required"`
@@ -41,7 +41,7 @@ func (h *Handlers) CreateUploadJob(c *gin.Context) {
 		return
 	}
 
-	var req UploadJobRequest
+	var req CreateUploadJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
