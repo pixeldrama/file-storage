@@ -41,12 +41,6 @@ type mockJobRepository struct {
 	jobs map[string]*domain.UploadJob
 }
 
-type mockMetricsCollector struct{}
-
-func (m *mockMetricsCollector) RecordUploadDuration(status string, duration time.Duration)     {}
-func (m *mockMetricsCollector) RecordUploadSize(size int64)                                    {}
-func (m *mockMetricsCollector) RecordVirusCheckDuration(status string, duration time.Duration) {}
-
 type mockFileInfoRepository struct {
 	fileInfos map[string]*domain.FileInfo
 }
@@ -248,7 +242,7 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 				},
 			}
 
-			metrics := &mockMetricsCollector{}
+			metrics := &mockMetrics{}
 
 			fileAuthorization := &mockFileAuthorization{}
 
@@ -326,7 +320,7 @@ func TestVirusScannerJobRunner_ProcessStuckJobs(t *testing.T) {
 		},
 	}
 
-	metrics := &mockMetricsCollector{}
+	metrics := &mockMetrics{}
 	fileInfoRepo := newMockFileInfoRepository()
 	fileAuthorization := &mockFileAuthorization{}
 
