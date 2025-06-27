@@ -18,20 +18,24 @@ const (
 	JobStatusDeleted           JobStatus = "DELETED"
 )
 
-type File struct {
-	ID        string
-	Size      int64
-	CreatedAt time.Time
+type FileInfo struct {
+	ID                 string    `json:"id"`
+	Filename           string    `json:"filename,omitempty"`
+	FileType           string    `json:"fileType,omitempty"`
+	LinkedResourceType string    `json:"linkedResourceType,omitempty"`
+	LinkedResourceID   string    `json:"linkedResourceID,omitempty"`
+	CreatedAt          time.Time `json:"createdAt"`
+	UpdatedAt          time.Time `json:"updatedAt"`
 }
 
 type UploadJob struct {
-	ID        string    `json:"jobId"`
-	Filename  string    `json:"filename,omitempty"`
-	Status    JobStatus `json:"status"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	FileID    string    `json:"fileId,omitempty"`
-	Error     string    `json:"error,omitempty"`
+	ID              string    `json:"jobId"`
+	CreatedByUserId string    `json:"createdByUserId"`
+	FileID          string    `json:"fileId,omitempty"`
+	Status          JobStatus `json:"status"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
+	Error           string    `json:"error,omitempty"`
 }
 
 type FileStorage interface {
@@ -48,6 +52,13 @@ type UploadJobRepository interface {
 	GetByStatus(ctx context.Context, status JobStatus) ([]*UploadJob, error)
 }
 
+type FileInfoRepository interface {
+	Create(ctx context.Context, fileInfo *FileInfo) error
+	Get(ctx context.Context, fileID string) (*FileInfo, error)
+	Update(ctx context.Context, fileInfo *FileInfo) error
+	Delete(ctx context.Context, fileID string) error
+}
+
 type MetricsCollector interface {
 	RecordUploadDuration(status string, duration time.Duration)
 	RecordUploadSize(size int64)
@@ -58,4 +69,17 @@ type VirusChecker interface {
 	// CheckFile checks if a file contains a virus.
 	// Returns true if the file is clean, false if it contains a virus.
 	CheckFile(ctx context.Context, reader io.Reader) (bool, error)
+}
+
+type AuthorizationService interface {
+	Authorize(ctx context.Context, userID string, resourceType string, resourceID string, action string) (bool, error)
+}
+
+type FileAuthorization interface {
+	CanUploadFile(userID, fileType, linkedResourceType, linkedResourceID string) (bool, error)
+	CanReadFile(userID, fileID string) (bool, error)
+	CanDeleteFile(userID, fileID string) (bool, error)
+
+	CreateFileAuthorization(fileID, fileType, linkedResourceID, linkedResourceType string) error
+	RemoveFileAuthorization(fileID, fileType, linkedResourceID, linkedResourceType string) error
 }

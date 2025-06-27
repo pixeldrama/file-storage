@@ -14,15 +14,18 @@ import (
 )
 
 type ServerConfig struct {
-	FileStorage      domain.FileStorage
-	JobRepo          domain.UploadJobRepository
-	KeycloakURL      string
-	KeycloakClientID string
+	FileStorage          domain.FileStorage
+	JobRepo              domain.UploadJobRepository
+	FileInfoRepo         domain.FileInfoRepository
+	FileAuthorization    domain.FileAuthorization
+	KeycloakURL          string
+	KeycloakClientID     string
+	UseMockAuthorization bool
 	Logger           *slog.Logger
 }
 
 func SetupRouter(config ServerConfig) *gin.Engine {
-	h := handlers.NewHandlers(config.FileStorage, config.JobRepo)
+	h := handlers.NewHandlers(config.FileStorage, config.JobRepo, config.FileInfoRepo, config.FileAuthorization)
 
 	// Create a new Gin engine without any default middleware
 	r := gin.New()
@@ -42,21 +45,29 @@ func SetupRouter(config ServerConfig) *gin.Engine {
 
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	// Initialize JWT verifier
-	jwtVerifier := auth.NewJWTVerifier(auth.KeycloakConfig{
-		RealmURL: config.KeycloakURL,
-		ClientID: config.KeycloakClientID,
-	})
+	var jwtVerifier auth.JWTVerifierInterface
+	if config.UseMockAuthorization {
+		config.Logger.Info("Using MockJWTVerifier because UseMockAuthorization is set to true.")
+		jwtVerifier = auth.NewMockJWTVerifier()
+	} else {
+		jwtVerifier = auth.NewJWTVerifier(auth.KeycloakConfig{
+			RealmURL: config.KeycloakURL,
+			ClientID: config.KeycloakClientID,
+		})
+	}
 
 	// Apply auth middleware to all routes except health and metrics
 	r.Use(middleware.NewAuthMiddleware(middleware.AuthMiddlewareConfig{
 		JWTVerifier: jwtVerifier,
 	}))
 
+	r.Use(middleware.RequireUserId())
+
 	r.POST("/upload-jobs", h.CreateUploadJob)
 	r.GET("/upload-jobs/:jobId", h.GetUploadJobStatus)
 	r.POST("/upload-jobs/:jobId", h.UploadFile)
-	r.GET("/files/:fileId", h.DownloadFile)
+	r.GET("/files/:fileId", h.GetFileInfo)
+	r.GET("/files/:fileId/download", h.DownloadFile)
 	r.DELETE("/files/:fileId", h.DeleteFile)
 
 	return r

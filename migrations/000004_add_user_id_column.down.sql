@@ -1,0 +1,1 @@
+ALTER TABLE upload_jobs DROP COLUMN created_by_user_id; 

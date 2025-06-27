@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/benjamin/file-storage-go/pkg/ecsslog"
+	"file-storage-go/pkg/ecsslog"
 )
 
 // InitLogger initializes the global slog logger based on the LOG_FORMAT environment variable.

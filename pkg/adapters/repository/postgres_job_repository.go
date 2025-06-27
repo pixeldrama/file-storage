@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"file-storage-go/pkg/domain"
@@ -12,40 +13,40 @@ import (
 
 const (
 	createJobQuery = `
-		INSERT INTO upload_jobs (id, filename, status, created_at, updated_at, file_id, error)
+		INSERT INTO upload_jobs (id, created_by_user_id, status, created_at, updated_at, file_id, error)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 
 	getJobQuery = `
-		SELECT id, filename, status, created_at, updated_at, file_id, error
+		SELECT id, created_by_user_id, status, created_at, updated_at, file_id, error
 		FROM upload_jobs
 		WHERE id = $1
 	`
 
 	updateJobQuery = `
 		UPDATE upload_jobs
-		SET filename = $1, status = $2, updated_at = $3, file_id = $4, error = $5
+		SET created_by_user_id = $1, status = $2, updated_at = $3, file_id = $4, error = $5
 		WHERE id = $6
 	`
 
 	getJobByFileIDQuery = `
-		SELECT id, filename, status, created_at, updated_at, file_id, error
+		SELECT id, created_by_user_id, status, created_at, updated_at, file_id, error
 		FROM upload_jobs
 		WHERE file_id = $1
 	`
 
 	getJobsByStatusQuery = `
-		SELECT id, filename, status, created_at, updated_at, file_id, error
+		SELECT id, created_by_user_id, status, created_at, updated_at, file_id, error
 		FROM upload_jobs
 		WHERE status = $1
 	`
 )
 
-type PostgresRepository struct {
+type PostgresJobRepo struct {
 	pool *pgxpool.Pool
 }
 
-func NewPostgresRepository(connStr string) (*PostgresRepository, error) {
+func NewPostgresJobRepo(connStr string) (*PostgresJobRepo, error) {
 	config, err := pgxpool.ParseConfig(connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse connection string: %w", err)
@@ -60,19 +61,20 @@ func NewPostgresRepository(connStr string) (*PostgresRepository, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	return &PostgresRepository{
+	return &PostgresJobRepo{
 		pool: pool,
 	}, nil
 }
 
-func (r *PostgresRepository) Create(ctx context.Context, job *domain.UploadJob) error {
+func (r *PostgresJobRepo) Create(ctx context.Context, job *domain.UploadJob) error {
+	fileID := r.stringToNull(job.FileID)
 	_, err := r.pool.Exec(ctx, createJobQuery,
 		job.ID,
-		job.Filename,
+		job.CreatedByUserId,
 		job.Status,
 		job.CreatedAt,
 		job.UpdatedAt,
-		job.FileID,
+		fileID,
 		job.Error,
 	)
 	if err != nil {
@@ -81,15 +83,16 @@ func (r *PostgresRepository) Create(ctx context.Context, job *domain.UploadJob) 
 	return nil
 }
 
-func (r *PostgresRepository) Get(ctx context.Context, jobID string) (*domain.UploadJob, error) {
+func (r *PostgresJobRepo) Get(ctx context.Context, jobID string) (*domain.UploadJob, error) {
 	job := &domain.UploadJob{}
+	var fileID sql.NullString
 	err := r.pool.QueryRow(ctx, getJobQuery, jobID).Scan(
 		&job.ID,
-		&job.Filename,
+		&job.CreatedByUserId,
 		&job.Status,
 		&job.CreatedAt,
 		&job.UpdatedAt,
-		&job.FileID,
+		&fileID,
 		&job.Error,
 	)
 	if err == pgx.ErrNoRows {
@@ -98,15 +101,17 @@ func (r *PostgresRepository) Get(ctx context.Context, jobID string) (*domain.Upl
 	if err != nil {
 		return nil, fmt.Errorf("failed to get upload job: %w", err)
 	}
+	job.FileID = r.nullToString(fileID)
 	return job, nil
 }
 
-func (r *PostgresRepository) Update(ctx context.Context, job *domain.UploadJob) error {
+func (r *PostgresJobRepo) Update(ctx context.Context, job *domain.UploadJob) error {
+	fileID := r.stringToNull(job.FileID)
 	result, err := r.pool.Exec(ctx, updateJobQuery,
-		job.Filename,
+		job.CreatedByUserId,
 		job.Status,
 		job.UpdatedAt,
-		job.FileID,
+		fileID,
 		job.Error,
 		job.ID,
 	)
@@ -121,15 +126,16 @@ func (r *PostgresRepository) Update(ctx context.Context, job *domain.UploadJob) 
 	return nil
 }
 
-func (r *PostgresRepository) GetByFileID(ctx context.Context, fileID string) (*domain.UploadJob, error) {
+func (r *PostgresJobRepo) GetByFileID(ctx context.Context, fileID string) (*domain.UploadJob, error) {
 	job := &domain.UploadJob{}
+	var dbFileID sql.NullString
 	err := r.pool.QueryRow(ctx, getJobByFileIDQuery, fileID).Scan(
 		&job.ID,
-		&job.Filename,
+		&job.CreatedByUserId,
 		&job.Status,
 		&job.CreatedAt,
 		&job.UpdatedAt,
-		&job.FileID,
+		&dbFileID,
 		&job.Error,
 	)
 	if err == pgx.ErrNoRows {
@@ -138,10 +144,11 @@ func (r *PostgresRepository) GetByFileID(ctx context.Context, fileID string) (*d
 	if err != nil {
 		return nil, fmt.Errorf("failed to get upload job by file ID: %w", err)
 	}
+	job.FileID = r.nullToString(dbFileID)
 	return job, nil
 }
 
-func (r *PostgresRepository) GetByStatus(ctx context.Context, status domain.JobStatus) ([]*domain.UploadJob, error) {
+func (r *PostgresJobRepo) GetByStatus(ctx context.Context, status domain.JobStatus) ([]*domain.UploadJob, error) {
 	rows, err := r.pool.Query(ctx, getJobsByStatusQuery, status)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get jobs by status: %w", err)
@@ -151,18 +158,20 @@ func (r *PostgresRepository) GetByStatus(ctx context.Context, status domain.JobS
 	var jobs []*domain.UploadJob
 	for rows.Next() {
 		job := &domain.UploadJob{}
+		var fileID sql.NullString
 		err := rows.Scan(
 			&job.ID,
-			&job.Filename,
+			&job.CreatedByUserId,
 			&job.Status,
 			&job.CreatedAt,
 			&job.UpdatedAt,
-			&job.FileID,
+			&fileID,
 			&job.Error,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan job: %w", err)
 		}
+		job.FileID = r.nullToString(fileID)
 		jobs = append(jobs, job)
 	}
 
@@ -173,7 +182,21 @@ func (r *PostgresRepository) GetByStatus(ctx context.Context, status domain.JobS
 	return jobs, nil
 }
 
-func (r *PostgresRepository) Close() error {
+func (r *PostgresJobRepo) stringToNull(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{Valid: false}
+	}
+	return sql.NullString{String: s, Valid: true}
+}
+
+func (r *PostgresJobRepo) nullToString(ns sql.NullString) string {
+	if !ns.Valid {
+		return ""
+	}
+	return ns.String
+}
+
+func (r *PostgresJobRepo) Close() error {
 	r.pool.Close()
 	return nil
 }

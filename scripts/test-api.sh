@@ -9,24 +9,8 @@ KEYCLOAK_URL="http://keycloak:8080"
 REALM="file-storage"
 CLIENT_ID="file-storage"
 CLIENT_SECRET="test-secret" # This matches the secret in setup-keycloak.sh
+JWT_TOKEN="mock-token"
 
-get_keycloak_token() {
-    local token_response=$(curl -s -X POST "${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token" \
-        -H "Content-Type: application/x-www-form-urlencoded" \
-        -d "grant_type=client_credentials" \
-        -d "client_id=${CLIENT_ID}" \
-        -d "client_secret=${CLIENT_SECRET}")
-    
-    local token=$(echo "$token_response" | jq -r '.access_token')
-    
-    if [ -z "$token" ] || [ "$token" == "null" ]; then
-        echo "Error: Failed to obtain token from Keycloak"
-        echo "Response: $token_response"
-        exit 1
-    fi
-    
-    echo "$token"
-}
 
 if ! command -v jq &> /dev/null
 then
@@ -35,14 +19,6 @@ then
     echo "On macOS with Homebrew: brew install jq"
     exit 1
 fi
-
-echo "Obtaining JWT token from Keycloak..."
-JWT_TOKEN=$(get_keycloak_token)
-if [ $? -ne 0 ]; then
-    echo "Failed to obtain JWT token. Exiting."
-    exit 1
-fi
-echo "Successfully obtained JWT token"
 
 # Create test files
 if [ ! -f "$CLEAN_TEST_FILE" ]; then
@@ -77,7 +53,7 @@ echo "POST $BASE_URL/upload-jobs"
 CREATE_JOB_RESPONSE=$(curl -v -X POST \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer $JWT_TOKEN" \
-    -d '{"filename": "clean_file.txt"}' \
+    -d '{"filename": "clean_file.txt", "fileType": "some_filetype", "linkedResourceType": "company", "linkedResourceID": "3"}' \
     "$BASE_URL/upload-jobs")
 echo "Response: $CREATE_JOB_RESPONSE"
 
@@ -111,10 +87,60 @@ else
     exit 1
 fi
 
+# Extract file ID for further testing
+FILE_ID=$(echo "$JOB_STATUS" | jq -r '.fileId')
+if [ -z "$FILE_ID" ] || [ "$FILE_ID" == "null" ]; then
+    echo "Error: Could not extract fileId from job status."
+    exit 1
+fi
+echo "Extracted FILE_ID: $FILE_ID"
+
+# Test 1.5: Get File Info
+echo -e "\n\n--- Test 1.5: Get File Info ---"
+echo "GET $BASE_URL/files/$FILE_ID"
+FILE_INFO_RESPONSE=$(curl -s -H "Authorization: Bearer $JWT_TOKEN" "$BASE_URL/files/$FILE_ID")
+echo "File Info Response: $FILE_INFO_RESPONSE"
+
+# Verify file info was retrieved successfully
+if echo "$FILE_INFO_RESPONSE" | jq -e '.id' > /dev/null; then
+    echo "File info retrieved successfully!"
+else
+    echo "Error: Failed to retrieve file info!"
+    exit 1
+fi
+
+# Test 1.6: Delete File
+echo -e "\n\n--- Test 1.6: Delete File ---"
+echo "DELETE $BASE_URL/files/$FILE_ID"
+DELETE_RESPONSE=$(curl -s -X DELETE -H "Authorization: Bearer $JWT_TOKEN" "$BASE_URL/files/$FILE_ID")
+echo "Delete Response Status: $DELETE_RESPONSE"
+
+# Verify file was deleted successfully (should return 204 No Content)
+if [ -z "$DELETE_RESPONSE" ]; then
+    echo "File deleted successfully!"
+else
+    echo "Error: Failed to delete file!"
+    exit 1
+fi
+
+# Test 1.7: Verify File Info is Gone
+echo -e "\n\n--- Test 1.7: Verify File Info is Gone ---"
+echo "GET $BASE_URL/files/$FILE_ID"
+FILE_INFO_AFTER_DELETE=$(curl -s -H "Authorization: Bearer $JWT_TOKEN" "$BASE_URL/files/$FILE_ID")
+echo "File Info After Delete: $FILE_INFO_AFTER_DELETE"
+
+# Verify file info is no longer accessible
+if echo "$FILE_INFO_AFTER_DELETE" | jq -e '.error' > /dev/null; then
+    echo "File info correctly no longer accessible!"
+else
+    echo "Error: File info still accessible after deletion!"
+    exit 1
+fi
+
 # Test 2: Virus File Upload
 echo -e "\n\n--- Test 2: Virus File Upload ---"
 echo "POST $BASE_URL/upload-jobs"
-CREATE_JOB_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_TOKEN" -d '{"fileName": "virus_file.txt"}' "$BASE_URL/upload-jobs")
+CREATE_JOB_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_TOKEN" -d '{"filename": "virus_file.txt", "fileType": "some_filetype", "linkedResourceType": "company", "linkedResourceID": "3"}' "$BASE_URL/upload-jobs")
 echo "Response: $CREATE_JOB_RESPONSE"
 
 JOB_ID=$(echo "$CREATE_JOB_RESPONSE" | jq -r '.jobId')

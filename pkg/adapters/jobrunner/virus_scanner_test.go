@@ -3,12 +3,12 @@ package jobrunner
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 	"time"
 
 	"file-storage-go/pkg/domain"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,6 +39,60 @@ func (m *mockVirusChecker) CheckFile(ctx context.Context, reader io.Reader) (boo
 
 type mockJobRepository struct {
 	jobs map[string]*domain.UploadJob
+}
+
+type mockFileInfoRepository struct {
+	fileInfos map[string]*domain.FileInfo
+}
+
+func newMockFileInfoRepository() *mockFileInfoRepository {
+	return &mockFileInfoRepository{
+		fileInfos: make(map[string]*domain.FileInfo),
+	}
+}
+
+func (m *mockFileInfoRepository) Create(ctx context.Context, fileInfo *domain.FileInfo) error {
+	m.fileInfos[fileInfo.ID] = fileInfo
+	return nil
+}
+
+func (m *mockFileInfoRepository) Get(ctx context.Context, fileID string) (*domain.FileInfo, error) {
+	if fileInfo, exists := m.fileInfos[fileID]; exists {
+		return fileInfo, nil
+	}
+	return nil, fmt.Errorf("file info not found")
+}
+
+func (m *mockFileInfoRepository) Update(ctx context.Context, fileInfo *domain.FileInfo) error {
+	m.fileInfos[fileInfo.ID] = fileInfo
+	return nil
+}
+
+func (m *mockFileInfoRepository) Delete(ctx context.Context, fileID string) error {
+	delete(m.fileInfos, fileID)
+	return nil
+}
+
+type mockFileAuthorization struct{}
+
+func (m *mockFileAuthorization) CanUploadFile(userID, fileType, linkedResourceType, linkedResourceID string) (bool, error) {
+	return true, nil
+}
+
+func (m *mockFileAuthorization) CanReadFile(userID, fileID string) (bool, error) {
+	return true, nil
+}
+
+func (m *mockFileAuthorization) CanDeleteFile(userID, fileID string) (bool, error) {
+	return true, nil
+}
+
+func (m *mockFileAuthorization) CreateFileAuthorization(fileID, fileType, linkedResourceID, linkedResourceType string) error {
+	return nil
+}
+
+func (m *mockFileAuthorization) RemoveFileAuthorization(fileID, fileType, linkedResourceID, linkedResourceType string) error {
+	return nil
 }
 
 func newMockJobRepository() *mockJobRepository {
@@ -99,11 +153,12 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 		{
 			name: "successful virus check",
 			job: &domain.UploadJob{
-				ID:        "test-job",
-				FileID:    "test-file",
-				Status:    domain.JobStatusVirusCheckPending,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
+				ID:              "test-job",
+				CreatedByUserId: "test-user",
+				FileID:          "test-file",
+				Status:          domain.JobStatusVirusCheckPending,
+				CreatedAt:       time.Now(),
+				UpdatedAt:       time.Now(),
 			},
 			checkResult:    true,
 			expectedStatus: domain.JobStatusCompleted,
@@ -111,11 +166,12 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 		{
 			name: "virus check failed - malware detected",
 			job: &domain.UploadJob{
-				ID:        "test-job",
-				FileID:    "test-file",
-				Status:    domain.JobStatusVirusCheckPending,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
+				ID:              "test-job",
+				CreatedByUserId: "test-user",
+				FileID:          "test-file",
+				Status:          domain.JobStatusVirusCheckPending,
+				CreatedAt:       time.Now(),
+				UpdatedAt:       time.Now(),
 			},
 			checkResult:    false,
 			expectedStatus: domain.JobStatusFailed,
@@ -124,11 +180,12 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 		{
 			name: "download error",
 			job: &domain.UploadJob{
-				ID:        "test-job",
-				FileID:    "test-file",
-				Status:    domain.JobStatusVirusCheckPending,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
+				ID:              "test-job",
+				CreatedByUserId: "test-user",
+				FileID:          "test-file",
+				Status:          domain.JobStatusVirusCheckPending,
+				CreatedAt:       time.Now(),
+				UpdatedAt:       time.Now(),
 			},
 			downloadErr:    errors.New("download failed"),
 			expectedStatus: domain.JobStatusFailed,
@@ -137,11 +194,12 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 		{
 			name: "virus check error",
 			job: &domain.UploadJob{
-				ID:        "test-job",
-				FileID:    "test-file",
-				Status:    domain.JobStatusVirusCheckPending,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
+				ID:              "test-job",
+				CreatedByUserId: "test-user",
+				FileID:          "test-file",
+				Status:          domain.JobStatusVirusCheckPending,
+				CreatedAt:       time.Now(),
+				UpdatedAt:       time.Now(),
 			},
 			checkErr:       errors.New("check failed"),
 			expectedStatus: domain.JobStatusFailed,
@@ -153,6 +211,18 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockJobRepository()
 			require.NoError(t, repo.Create(context.Background(), tt.job))
+
+			fileInfoRepo := newMockFileInfoRepository()
+			fileInfo := &domain.FileInfo{
+				ID:                 tt.job.FileID,
+				Filename:           "test-file.txt",
+				FileType:           "text/plain",
+				LinkedResourceType: "test",
+				LinkedResourceID:   "test-id",
+				CreatedAt:          time.Now(),
+				UpdatedAt:          time.Now(),
+			}
+			require.NoError(t, fileInfoRepo.Create(context.Background(), fileInfo))
 
 			fileStorage := &mockFileStorage{
 				downloadFunc: func(ctx context.Context, fileID string) (io.ReadCloser, error) {
@@ -173,8 +243,13 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 			}
 
 			metrics := &mockMetrics{}
+
+			fileAuthorization := &mockFileAuthorization{}
+
 			runner := NewVirusScannerJobRunner(
 				repo,
+				fileInfoRepo,
+				fileAuthorization,
 				fileStorage,
 				virusChecker,
 				5*time.Second,
@@ -202,27 +277,30 @@ func TestVirusScannerJobRunner_ProcessJob(t *testing.T) {
 func TestVirusScannerJobRunner_ProcessStuckJobs(t *testing.T) {
 	now := time.Now()
 	stuckJob := &domain.UploadJob{
-		ID:        "stuck-job",
-		FileID:    "stuck-file",
-		Status:    domain.JobStatusVirusChecking,
-		CreatedAt: now.Add(-10 * time.Minute),
-		UpdatedAt: now.Add(-6 * time.Second),
+		ID:              "stuck-job",
+		CreatedByUserId: "test-user",
+		FileID:          "stuck-file",
+		Status:          domain.JobStatusVirusChecking,
+		CreatedAt:       now.Add(-10 * time.Minute),
+		UpdatedAt:       now.Add(-6 * time.Second),
 	}
 
 	pendingJob := &domain.UploadJob{
-		ID:        "pending-job",
-		FileID:    "pending-file",
-		Status:    domain.JobStatusVirusCheckPending,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:              "pending-job",
+		CreatedByUserId: "test-user",
+		FileID:          "pending-file",
+		Status:          domain.JobStatusVirusCheckPending,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	completedJob := &domain.UploadJob{
-		ID:        "completed-job",
-		FileID:    "completed-file",
-		Status:    domain.JobStatusCompleted,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:              "completed-job",
+		CreatedByUserId: "test-user",
+		FileID:          "completed-file",
+		Status:          domain.JobStatusCompleted,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	repo := newMockJobRepository()
@@ -243,8 +321,13 @@ func TestVirusScannerJobRunner_ProcessStuckJobs(t *testing.T) {
 	}
 
 	metrics := &mockMetrics{}
+	fileInfoRepo := newMockFileInfoRepository()
+	fileAuthorization := &mockFileAuthorization{}
+
 	runner := NewVirusScannerJobRunner(
 		repo,
+		fileInfoRepo,
+		fileAuthorization,
 		fileStorage,
 		virusChecker,
 		5*time.Second,

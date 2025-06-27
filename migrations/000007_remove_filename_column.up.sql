@@ -1,0 +1,1 @@
+ALTER TABLE upload_jobs DROP COLUMN filename; 

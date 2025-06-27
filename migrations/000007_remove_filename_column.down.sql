@@ -1,0 +1,1 @@
+ALTER TABLE upload_jobs ADD COLUMN filename VARCHAR(255) NOT NULL; 

@@ -39,7 +39,6 @@ func main() {
 		logger.Info("Using MockStorage because USE_MOCK_STORAGE is set to true.")
 		fileStorage = storage.NewMockStorage()
 	} else {
-		logger.Info("Using AzureBlobStorage.")
 		if cfg.BlobStorageURL == "" {
 			logger.Error("BLOB_STORAGE_URL is required when not using mock storage.")
 			os.Exit(1)
@@ -66,24 +65,30 @@ func main() {
 	}
 
 	var jobRepo domain.UploadJobRepository
+	var fileInfoRepo domain.FileInfoRepository
 	if cfg.UseInMemoryRepo {
-		logger.Info("Using InMemoryRepository because USE_IN_MEMORY_REPO is set to true.")
-		jobRepo = repository.NewInMemoryRepository()
+		logger.Info("Using InMemoryJobRepo because USE_IN_MEMORY_REPO is set to true.")
+		jobRepo = repository.NewInMemoryJobRepo()
+		logger.Info("Using InMemoryFileInfoRepo because USE_IN_MEMORY_REPO is set to true.")
+		fileInfoRepo = repository.NewInMemoryFileInfoRepo()
 	} else {
-		logger.Info("Using PostgresRepository.")
-		jobRepo, err = repository.NewPostgresRepository(cfg.GetDBConnString())
+		jobRepo, err = repository.NewPostgresJobRepo(cfg.GetDBConnString())
 		if err != nil {
-			logger.Error("Failed to create postgres repository", "error", err)
-			os.Exit(1)
+			logger.Error("Failed to create postgres job repository", "error", err)
+		}
+		fileInfoRepo, err = repository.NewPostgresFileInfoRepo(cfg.GetDBConnString())
+		if err != nil {
+			logger.Error("Failed to create postgres file info repository", "error", err)
 		}
 	}
+
+	fileAuthorization := repository.NewMockFileAuthorization()
 
 	var virusChecker domain.VirusChecker
 	if cfg.UseMockVirusChecker {
 		logger.Info("Using MockVirusChecker because USE_MOCK_VIRUS_CHECKER is set to true.")
 		virusChecker = viruschecker.NewMockVirusChecker()
 	} else {
-		logger.Info("Using HTTPVirusChecker.")
 		if cfg.VirusCheckerURL == "" {
 			logger.Error("VIRUS_CHECKER_URL is required when not using mock virus checker")
 			os.Exit(1)
@@ -99,6 +104,8 @@ func main() {
 
 	virusScanner := jobrunner.NewVirusScannerJobRunner(
 		jobRepo,
+		fileInfoRepo,
+		fileAuthorization,
 		fileStorage,
 		virusChecker,
 		virusCheckTimeout,
@@ -108,11 +115,14 @@ func main() {
 	go virusScanner.Start(context.Background())
 
 	serverConfig := server.ServerConfig{
-		FileStorage:      fileStorage,
-		JobRepo:          jobRepo,
-		KeycloakURL:      cfg.KeycloakURL,
-		KeycloakClientID: cfg.KeycloakClientID,
-		Logger:           logger,
+		FileStorage:          fileStorage,
+		JobRepo:              jobRepo,
+		FileInfoRepo:         fileInfoRepo,
+		FileAuthorization:    fileAuthorization,
+		KeycloakURL:          cfg.KeycloakURL,
+		KeycloakClientID:     cfg.KeycloakClientID,
+		Logger:               logger,
+		UseMockAuthorization: cfg.UseMockAuthorization,
 	}
 
 	r := server.SetupRouter(serverConfig)
